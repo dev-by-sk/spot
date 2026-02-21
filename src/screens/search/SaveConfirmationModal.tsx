@@ -5,8 +5,6 @@ import {
   TextInput,
   Modal,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Switch,
   TouchableOpacity,
@@ -65,9 +63,8 @@ export function SaveConfirmationModal({
       presentationStyle="pageSheet"
       onRequestClose={handleCancel}
     >
-      <KeyboardAvoidingView
+      <View
         style={[styles.container, { backgroundColor: colors.spotBackground }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
         <Text style={[styles.header, { color: colors.spotTextPrimary }]}>
@@ -161,10 +158,12 @@ export function SaveConfirmationModal({
               <DateTimePicker
                 value={dateVisited ?? new Date()}
                 mode="date"
+                display="inline"
                 maximumDate={new Date()}
                 onChange={(_, selectedDate) => {
                   if (selectedDate) setDateVisited(selectedDate);
                 }}
+                accentColor={spotEmerald}
               />
             )}
           </View>
@@ -175,7 +174,7 @@ export function SaveConfirmationModal({
           <SpotButton title="Cancel" variant="outline" onPress={handleCancel} style={{ flex: 1 }} />
           <SpotButton title="Save" variant="primary" onPress={handleSave} style={{ flex: 1 }} />
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
