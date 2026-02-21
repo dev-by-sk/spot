@@ -49,18 +49,23 @@ export function FilterSheet({
       onRequestClose={onDone}
     >
       <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
+        {/* Drag indicator */}
+        <View style={styles.dragIndicatorRow}>
+          <View style={[styles.dragIndicator, { backgroundColor: colors.spotDivider }]} />
+        </View>
+
         {/* Header */}
-        <View style={[styles.header, { borderColor: colors.spotDivider }]}>
-          <TouchableOpacity onPress={onClearAll}>
-            <Text style={[styles.headerButton, { color: colors.spotTextSecondary }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClearAll} style={styles.headerButtonTouchable}>
+            <Text style={[styles.headerButtonText, { color: colors.spotTextSecondary }]}>
               Clear All
             </Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.spotTextPrimary }]}>
             Filters
           </Text>
-          <TouchableOpacity onPress={onDone}>
-            <Text style={[styles.headerButton, { color: spotEmerald, fontWeight: '600' }]}>
+          <TouchableOpacity onPress={onDone} style={styles.headerButtonTouchable}>
+            <Text style={[styles.headerButtonText, { color: spotEmerald, fontWeight: '600' }]}>
               Done
             </Text>
           </TouchableOpacity>
@@ -151,25 +156,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  dragIndicatorRow: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  dragIndicator: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerTitle: {
     ...SpotTypography.headline,
   },
-  headerButton: {
+  headerButtonTouchable: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  headerButtonText: {
     ...SpotTypography.body,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
     gap: 24,
   },
   section: {
