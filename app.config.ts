@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.spot.app',
-    usesAppleSignIn: true,
+    // usesAppleSignIn: true,
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'spot. uses your location to filter saved places by distance.',
@@ -35,7 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'],
   },
   plugins: [
-    'expo-apple-authentication',
+    // 'expo-apple-authentication',
     'expo-location',
     'expo-sqlite',
     'expo-screen-orientation',

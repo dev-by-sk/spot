@@ -5,16 +5,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Platform,
+  // Platform,
 } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
+// import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 
 export function LoginScreen() {
-  const { signInWithApple, signInWithGoogle, isLoading, errorMessage } = useAuth();
+  const { /* signInWithApple, */ signInWithGoogle, isLoading, errorMessage } = useAuth();
   const colors = useSpotColors();
 
   return (
@@ -33,7 +33,7 @@ export function LoginScreen() {
 
       {/* Auth buttons */}
       <View style={styles.authSection}>
-        {/* Apple Sign-In (iOS only) */}
+        {/* Apple Sign-In (iOS only) — temporarily disabled
         {Platform.OS === 'ios' && (
           <View style={[styles.appleButtonWrapper, { borderColor: colors.spotDivider }]}>
             <AppleAuthentication.AppleAuthenticationButton
@@ -45,6 +45,7 @@ export function LoginScreen() {
             />
           </View>
         )}
+        */}
 
         {/* Google Sign-In */}
         <TouchableOpacity
@@ -54,13 +55,13 @@ export function LoginScreen() {
           style={[
             styles.googleButton,
             {
-              borderColor: colors.spotDivider,
+              backgroundColor: colors.spotEmerald,
               opacity: isLoading ? 0.6 : 1,
             },
           ]}
         >
-          <Ionicons name="logo-google" size={20} color={colors.spotTextPrimary} />
-          <Text style={[styles.googleText, { color: colors.spotTextPrimary }]}>
+          <Ionicons name="logo-google" size={20} color="#FFFFFF" />
+          <Text style={[styles.googleText, { color: '#FFFFFF' }]}>
             Sign in with Google
           </Text>
         </TouchableOpacity>
@@ -129,7 +130,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 1,
   },
   googleText: {
     ...SpotTypography.headline,
