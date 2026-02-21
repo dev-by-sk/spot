@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ListStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { usePlaces } from '../../hooks/usePlaces';
@@ -25,6 +27,7 @@ import { SpotTypography } from '../../theme/typography';
 import type { SavedPlaceLocal } from '../../types';
 
 export function SavedPlacesListScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ListStackParamList>>();
   const {
     savedPlaces,
     isLoadingPlaces,
@@ -41,6 +44,8 @@ export function SavedPlacesListScreen() {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
+  const openSwipeableRef = useRef<Swipeable | null>(null);
+
   const [editingPlace, setEditingPlace] = useState<SavedPlaceLocal | null>(null);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
@@ -50,6 +55,9 @@ export function SavedPlacesListScreen() {
   useEffect(() => {
     if (currentUserId && isFocused) {
       refreshPlaces(currentUserId);
+    }
+    if (!isFocused) {
+      openSwipeableRef.current?.close();
     }
   }, [currentUserId, isFocused, refreshPlaces]);
 
@@ -119,10 +127,11 @@ export function SavedPlacesListScreen() {
   }, []);
 
   const handleSaveNote = useCallback(
-    async (note: string) => {
+    async (note: string, dateVisited?: string | null) => {
       if (!editingPlace) return;
-      await updateNote(editingPlace.id, note, editingPlace.name ?? '');
+      await updateNote(editingPlace.id, note, editingPlace.name ?? '', dateVisited);
       setEditingPlace(null);
+      openSwipeableRef.current?.close();
     },
     [editingPlace, updateNote],
   );
@@ -156,18 +165,34 @@ export function SavedPlacesListScreen() {
     [colors, handleEditNote, handleDelete],
   );
 
+  const handleSwipeOpen = useCallback((ref: Swipeable) => {
+    if (openSwipeableRef.current && openSwipeableRef.current !== ref) {
+      openSwipeableRef.current.close();
+    }
+    openSwipeableRef.current = ref;
+  }, []);
+
   const renderItem = useCallback(
-    ({ item }: { item: SavedPlaceLocal }) => (
-      <Swipeable
-        renderRightActions={(_progress) => renderRightActions(item, _progress)}
-        overshootRight={false}
-      >
-        <View style={styles.cardContainer}>
-          <PlaceCard place={item} />
-        </View>
-      </Swipeable>
-    ),
-    [renderRightActions],
+    ({ item }: { item: SavedPlaceLocal }) => {
+      let swipeRef: Swipeable | null = null;
+      return (
+        <Swipeable
+          ref={(ref) => { swipeRef = ref; }}
+          renderRightActions={(_progress) => renderRightActions(item, _progress)}
+          onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
+          overshootRight={false}
+        >
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('PlaceDetail', { place: item })}
+            style={styles.cardContainer}
+          >
+            <PlaceCard place={item} />
+          </TouchableOpacity>
+        </Swipeable>
+      );
+    },
+    [renderRightActions, handleSwipeOpen, navigation],
   );
 
   if (savedPlaces.length === 0 && !isLoadingPlaces) {
@@ -223,8 +248,12 @@ export function SavedPlacesListScreen() {
         visible={editingPlace !== null}
         placeName={editingPlace?.name ?? ''}
         initialNote={editingPlace?.note_text ?? ''}
+        initialDateVisited={editingPlace?.date_visited ?? null}
         onSave={handleSaveNote}
-        onCancel={() => setEditingPlace(null)}
+        onCancel={() => {
+          setEditingPlace(null);
+          openSwipeableRef.current?.close();
+        }}
       />
 
       <FilterSheet

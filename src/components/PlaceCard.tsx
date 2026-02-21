@@ -88,9 +88,11 @@ export function PlaceCard({ place }: PlaceCardProps) {
         </Text>
       ) : null}
 
-      {/* Saved date */}
+      {/* Date */}
       <Text style={[styles.date, { color: colors.spotTextSecondary, opacity: 0.7 }]}>
-        Saved {relativeDate(place.saved_at)}
+        {place.date_visited
+          ? `Visited ${relativeDate(place.date_visited)}`
+          : `Saved ${relativeDate(place.saved_at)}`}
       </Text>
     </View>
   );

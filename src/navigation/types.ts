@@ -1,7 +1,13 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { SavedPlaceLocal } from '../types';
+
+export type ListStackParamList = {
+  SavedPlacesList: undefined;
+  PlaceDetail: { place: SavedPlaceLocal };
+};
 
 export type MainTabParamList = {
-  List: undefined;
+  List: NavigatorScreenParams<ListStackParamList>;
   Search: undefined;
   Profile: undefined;
 };

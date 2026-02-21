@@ -37,7 +37,7 @@ export interface PlacesContextValue {
   refreshPlaces: (userId: string) => Promise<void>;
   savePlace: (dto: PlaceCacheDTO, note: string, userId: string, dateVisited?: string | null) => Promise<void>;
   deletePlaceById: (id: string, placeName: string) => Promise<void>;
-  updateNote: (id: string, note: string, placeName: string) => Promise<void>;
+  updateNote: (id: string, note: string, placeName: string, dateVisited?: string | null) => Promise<void>;
 
   // Filter
   selectedFilter: PlaceCategory | null;
@@ -219,8 +219,8 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateNote = useCallback(
-    async (id: string, note: string, placeName: string) => {
-      await updateLocalSavedPlaceNote(id, note);
+    async (id: string, note: string, placeName: string, dateVisited?: string | null) => {
+      await updateLocalSavedPlaceNote(id, note, dateVisited);
 
       analytics.track(AnalyticsEvent.NoteEdited, { place_name: placeName });
 
@@ -231,7 +231,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
 
       // Async update on Supabase
       try {
-        await SupabaseService.updateSavedPlaceNote(id, note);
+        await SupabaseService.updateSavedPlaceNote(id, note, dateVisited);
       } catch (error) {
         console.warn('[Sync] Background note update push failed:', error);
       }

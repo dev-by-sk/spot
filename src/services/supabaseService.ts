@@ -99,10 +99,14 @@ export async function uploadSavedPlace(place: Omit<SavedPlaceDTO, 'place_cache'>
   if (error) throw error;
 }
 
-export async function updateSavedPlaceNote(id: string, note: string): Promise<void> {
+export async function updateSavedPlaceNote(id: string, note: string, dateVisited?: string | null): Promise<void> {
+  const updateData: Record<string, unknown> = { note_text: note };
+  if (dateVisited !== undefined) {
+    updateData.date_visited = dateVisited;
+  }
   const { error } = await supabase
     .from('saved_places')
-    .update({ note_text: note })
+    .update(updateData)
     .eq('id', id);
   if (error) throw error;
 }

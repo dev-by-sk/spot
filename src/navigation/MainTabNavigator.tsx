@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { SavedPlacesListScreen } from '../screens/list/SavedPlacesListScreen';
+import { ListStackNavigator } from './ListStackNavigator';
 import { SearchScreen } from '../screens/search/SearchScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { useAuth } from '../hooks/useAuth';
@@ -51,7 +51,7 @@ export function MainTabNavigator() {
     >
       <Tab.Screen
         name="List"
-        component={SavedPlacesListScreen}
+        component={ListStackNavigator}
         options={{
           headerShown: false,
           title: 'My spots',

@@ -75,9 +75,13 @@ export async function deleteLocalSavedPlace(id: string): Promise<void> {
   await db.runAsync('DELETE FROM saved_places WHERE id = ?', [id]);
 }
 
-export async function updateLocalSavedPlaceNote(id: string, note: string): Promise<void> {
+export async function updateLocalSavedPlaceNote(id: string, note: string, dateVisited?: string | null): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync('UPDATE saved_places SET note_text = ? WHERE id = ?', [note, id]);
+  if (dateVisited !== undefined) {
+    await db.runAsync('UPDATE saved_places SET note_text = ?, date_visited = ? WHERE id = ?', [note, dateVisited, id]);
+  } else {
+    await db.runAsync('UPDATE saved_places SET note_text = ? WHERE id = ?', [note, id]);
+  }
 }
 
 export async function fetchLocalSavedPlaces(userId: string): Promise<SavedPlaceLocal[]> {
