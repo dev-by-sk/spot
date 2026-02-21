@@ -99,14 +99,6 @@ export function SaveConfirmationModal({
                   </Text>
                 </View>
               )}
-              {placeDTO.price_level > 0 && (
-                <>
-                  <Text style={[styles.dot, { color: colors.spotTextSecondary }]}>&middot;</Text>
-                  <Text style={[styles.metaText, { color: colors.spotTextSecondary }]}>
-                    {'$'.repeat(placeDTO.price_level)}
-                  </Text>
-                </>
-              )}
               {placeDTO.category ? (
                 <>
                   <Text style={[styles.dot, { color: colors.spotTextSecondary }]}>&middot;</Text>
@@ -180,8 +172,8 @@ export function SaveConfirmationModal({
 
         {/* Buttons */}
         <View style={styles.buttonRow}>
-          <SpotButton title="Cancel" variant="outline" onPress={handleCancel} />
-          <SpotButton title="Save" variant="primary" onPress={handleSave} />
+          <SpotButton title="Cancel" variant="outline" onPress={handleCancel} style={{ flex: 1 }} />
+          <SpotButton title="Save" variant="primary" onPress={handleSave} style={{ flex: 1 }} />
         </View>
       </KeyboardAvoidingView>
     </Modal>

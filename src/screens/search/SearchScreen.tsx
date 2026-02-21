@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  InteractionManager,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../../hooks/usePlaces';
 import { useAuth } from '../../hooks/useAuth';
@@ -32,6 +34,7 @@ export function SearchScreen() {
   } = usePlaces();
   const { currentUserId } = useAuth();
   const colors = useSpotColors();
+  const navigation = useNavigation<any>();
 
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [placeToSave, setPlaceToSave] = useState<PlaceCacheDTO | null>(null);
@@ -64,14 +67,19 @@ export function SearchScreen() {
         await savePlace(placeToSave, note, currentUserId, dateVisited);
         setShowConfirmation(false);
         setPlaceToSave(null);
-      } catch (error) {
+        // Wait for modal dismiss animation to finish before switching tabs
+        setTimeout(() => navigation.navigate('List'), 500);
+      } catch (error: any) {
         setShowConfirmation(false);
         if (error instanceof SpotError && error.code === 'DUPLICATE_PLACE') {
           Alert.alert('Already saved', 'This spot is already in your list.');
+        } else {
+          console.error('[Save] Error:', error);
+          Alert.alert('Save failed', error?.message ?? 'Something went wrong.');
         }
       }
     },
-    [placeToSave, currentUserId, savePlace],
+    [placeToSave, currentUserId, savePlace, navigation],
   );
 
   const handleClear = useCallback(() => {

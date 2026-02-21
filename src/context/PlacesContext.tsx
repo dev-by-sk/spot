@@ -1,5 +1,5 @@
-import React, { createContext, useState, useCallback, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
+import * as Crypto from 'expo-crypto';
 import * as GooglePlacesService from '../services/googlePlacesService';
 import * as SupabaseService from '../services/supabaseService';
 import {
@@ -11,6 +11,7 @@ import {
 } from '../db/database';
 import { useSavedPlaces } from '../db/useSavedPlaces';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
+import { requestLocationPermission, getCurrentLocation } from '../services/locationService';
 import { pullFromRemote, pushToRemote } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import type {
@@ -80,6 +81,21 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const isOnline = useNetworkStatus();
   const { places: savedPlaces, isLoading: isLoadingPlaces, refresh: refreshPlaces } = useSavedPlaces();
   const currentUserIdRef = useRef<string | null>(null);
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const granted = await requestLocationPermission();
+      if (!granted) return;
+      const location = await getCurrentLocation();
+      if (location) {
+        userLocationRef.current = {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        };
+      }
+    })();
+  }, []);
 
   const setSelectedFilter = useCallback((f: PlaceCategory | null) => {
     setSelectedFilterState(f);
@@ -95,7 +111,11 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     }
     setIsSearching(true);
     try {
-      const results = await GooglePlacesService.autocomplete(query);
+      const results = await GooglePlacesService.autocomplete(
+        query,
+        userLocationRef.current?.lat,
+        userLocationRef.current?.lng,
+      );
       setSearchResults(results);
       analytics.track(AnalyticsEvent.SearchPerformed, {
         query,
@@ -133,7 +153,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         throw SpotError.duplicatePlace();
       }
 
-      const placeId = uuidv4();
+      const placeId = Crypto.randomUUID();
       const now = new Date().toISOString();
 
       // Insert cache locally

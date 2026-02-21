@@ -31,9 +31,16 @@ async function authenticatedRequest(url: string): Promise<any> {
   return data;
 }
 
-export async function autocomplete(query: string): Promise<PlaceSearchResult[]> {
+export async function autocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceSearchResult[]> {
   const encoded = encodeURIComponent(query);
-  const url = `${getBaseURL()}/autocomplete?query=${encoded}`;
+  let url = `${getBaseURL()}/autocomplete?query=${encoded}`;
+  if (lat != null && lng != null) {
+    url += `&lat=${lat}&lng=${lng}`;
+  }
   return authenticatedRequest(url);
 }
 
@@ -56,8 +63,15 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceCacheDTO> {
   };
 }
 
-export async function searchPlace(query: string): Promise<PlaceSearchResult[]> {
+export async function searchPlace(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceSearchResult[]> {
   const encoded = encodeURIComponent(query);
-  const url = `${getBaseURL()}/search?query=${encoded}`;
+  let url = `${getBaseURL()}/search?query=${encoded}`;
+  if (lat != null && lng != null) {
+    url += `&lat=${lat}&lng=${lng}`;
+  }
   return authenticatedRequest(url);
 }

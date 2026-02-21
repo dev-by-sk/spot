@@ -65,14 +65,6 @@ export function PlaceCard({ place }: PlaceCardProps) {
             </Text>
           </View>
         ) : null}
-        {place.price_level != null && place.price_level > 0 ? (
-          <>
-            <Text style={[styles.dot, { color: colors.spotTextSecondary }]}>&middot;</Text>
-            <Text style={[styles.metaText, { color: colors.spotTextSecondary }]}>
-              {'$'.repeat(place.price_level)}
-            </Text>
-          </>
-        ) : null}
         {place.address ? (
           <>
             <Text style={[styles.dot, { color: colors.spotTextSecondary }]}>&middot;</Text>

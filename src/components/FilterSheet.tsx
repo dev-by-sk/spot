@@ -13,32 +13,28 @@ import { SpotTypography } from '../theme/typography';
 interface FilterSheetProps {
   visible: boolean;
   selectedDistance: number | null;
-  selectedPrice: number | null;
   selectedCuisine: string | null;
   availableCuisines: string[];
   onDistanceChange: (d: number | null) => void;
-  onPriceChange: (p: number | null) => void;
   onCuisineChange: (c: string | null) => void;
   onClearAll: () => void;
   onDone: () => void;
 }
 
 const DISTANCE_OPTIONS: { label: string; value: number | null }[] = [
-  { label: '1 mi', value: 1 },
-  { label: '5 mi', value: 5 },
-  { label: '10 mi', value: 10 },
-  { label: '25 mi', value: 25 },
+  { label: '1 km', value: 1 },
+  { label: '5 km', value: 5 },
+  { label: '10 km', value: 10 },
+  { label: '25 km', value: 25 },
   { label: 'Any', value: null },
 ];
 
 export function FilterSheet({
   visible,
   selectedDistance,
-  selectedPrice,
   selectedCuisine,
   availableCuisines,
   onDistanceChange,
-  onPriceChange,
   onCuisineChange,
   onClearAll,
   onDone,
@@ -83,23 +79,6 @@ export function FilterSheet({
                   label={opt.label}
                   isSelected={selectedDistance === opt.value}
                   onPress={() => onDistanceChange(opt.value)}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Price */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.spotTextPrimary }]}>
-              Price
-            </Text>
-            <View style={styles.chipRow}>
-              {[1, 2, 3, 4].map((level) => (
-                <Chip
-                  key={level}
-                  label={'$'.repeat(level)}
-                  isSelected={selectedPrice === level}
-                  onPress={() => onPriceChange(selectedPrice === level ? null : level)}
                 />
               ))}
             </View>

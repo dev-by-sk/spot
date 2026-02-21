@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { usePlaces } from '../../hooks/usePlaces';
@@ -35,19 +36,19 @@ export function SavedPlacesListScreen() {
   } = usePlaces();
   const { currentUserId } = useAuth();
   const colors = useSpotColors();
+  const isFocused = useIsFocused();
 
   const [editingPlace, setEditingPlace] = useState<SavedPlaceLocal | null>(null);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
-  const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (currentUserId) {
+    if (currentUserId && isFocused) {
       refreshPlaces(currentUserId);
     }
-  }, [currentUserId, refreshPlaces]);
+  }, [currentUserId, isFocused, refreshPlaces]);
 
   useEffect(() => {
     (async () => {
@@ -72,17 +73,12 @@ export function SavedPlacesListScreen() {
       result = result.filter((p) => p.category === selectedFilter);
     }
 
-    // Price filter
-    if (selectedPrice !== null) {
-      result = result.filter((p) => p.price_level === selectedPrice);
-    }
-
     // Distance filter
     if (selectedDistance !== null && userLocation) {
       result = result.filter((p) => {
         if (p.lat == null || p.lng == null) return true;
-        const distMiles = getDistanceMiles(userLocation.lat, userLocation.lng, p.lat, p.lng);
-        return distMiles <= selectedDistance;
+        const distKm = getDistanceKm(userLocation.lat, userLocation.lng, p.lat, p.lng);
+        return distKm <= selectedDistance;
       });
     }
 
@@ -92,9 +88,9 @@ export function SavedPlacesListScreen() {
     }
 
     return result;
-  }, [savedPlaces, selectedFilter, selectedPrice, selectedDistance, selectedCuisine, userLocation]);
+  }, [savedPlaces, selectedFilter, selectedDistance, selectedCuisine, userLocation]);
 
-  const hasAdvancedFilters = selectedDistance !== null || selectedPrice !== null || selectedCuisine !== null;
+  const hasAdvancedFilters = selectedDistance !== null || selectedCuisine !== null;
 
   const handleRefresh = useCallback(async () => {
     if (!currentUserId) return;
@@ -178,7 +174,7 @@ export function SavedPlacesListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
-      {/* Header row with filter button and count badge */}
+      {/* Header row with filter button */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => setShowFilterSheet(true)}>
           <Ionicons
@@ -187,9 +183,6 @@ export function SavedPlacesListScreen() {
             color={hasAdvancedFilters ? spotEmerald : colors.spotTextSecondary}
           />
         </TouchableOpacity>
-        <View style={[styles.countBadge, { backgroundColor: colors.spotEmerald }]}>
-          <Text style={styles.countText}>{filteredPlaces.length}</Text>
-        </View>
       </View>
 
       <FilterBar selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
@@ -219,15 +212,12 @@ export function SavedPlacesListScreen() {
       <FilterSheet
         visible={showFilterSheet}
         selectedDistance={selectedDistance}
-        selectedPrice={selectedPrice}
         selectedCuisine={selectedCuisine}
         availableCuisines={availableCuisines}
         onDistanceChange={setSelectedDistance}
-        onPriceChange={setSelectedPrice}
         onCuisineChange={setSelectedCuisine}
         onClearAll={() => {
           setSelectedDistance(null);
-          setSelectedPrice(null);
           setSelectedCuisine(null);
         }}
         onDone={() => setShowFilterSheet(false)}
@@ -236,8 +226,8 @@ export function SavedPlacesListScreen() {
   );
 }
 
-function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 3959; // Earth's radius in miles
+function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Earth's radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
@@ -272,15 +262,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 8,
-  },
-  countBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  countText: {
-    ...SpotTypography.footnote,
-    color: '#FFFFFF',
   },
   listContent: {
     paddingVertical: 8,

@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { METERS_PER_MILE } from '../config/constants';
+import { METERS_PER_KM } from '../config/constants';
 
 export async function requestLocationPermission(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -17,7 +17,7 @@ export async function getCurrentLocation(): Promise<Location.LocationObject | nu
   }
 }
 
-export function distanceInMiles(
+export function distanceInKm(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -36,5 +36,5 @@ export function distanceInMiles(
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const meters = R * c;
-  return meters / METERS_PER_MILE;
+  return meters / METERS_PER_KM;
 }
