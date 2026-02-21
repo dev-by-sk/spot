@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
   StyleSheet,
   InteractionManager,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../../hooks/usePlaces';
 import { useAuth } from '../../hooks/useAuth';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useShare } from '../../context/ShareContext';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 import { SEARCH_DEBOUNCE_MS } from '../../config/constants';
@@ -34,6 +36,7 @@ export function SearchScreen() {
     savePlace,
   } = usePlaces();
   const { currentUserId } = useAuth();
+  const { pendingPlace, isExtracting, extractionError, clearShare, testExtract } = useShare();
   const colors = useSpotColors();
   const navigation = useNavigation<any>();
 
@@ -42,6 +45,22 @@ export function SearchScreen() {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const isFocused = useIsFocused();
+
+  // Handle incoming share intent
+  React.useEffect(() => {
+    if (pendingPlace) {
+      setPlaceToSave(pendingPlace);
+      setShowConfirmation(true);
+    }
+  }, [pendingPlace]);
+
+  React.useEffect(() => {
+    if (extractionError) {
+      Alert.alert('Could not extract place', extractionError, [
+        { text: 'Search manually', onPress: () => clearShare() },
+      ]);
+    }
+  }, [extractionError, clearShare]);
 
   React.useEffect(() => {
     if (!isFocused) {
@@ -76,6 +95,7 @@ export function SearchScreen() {
         await savePlace(placeToSave, note, currentUserId, dateVisited);
         setShowConfirmation(false);
         setPlaceToSave(null);
+        clearShare();
         // Wait for modal dismiss animation to finish before switching tabs
         setTimeout(() => navigation.navigate('List'), 500);
       } catch (error: any) {
@@ -137,6 +157,28 @@ export function SearchScreen() {
         )}
       </View>
 
+      {/* DEV: Test share extraction */}
+      {__DEV__ && (
+        <View style={styles.testExtractRow}>
+          <TouchableOpacity
+            style={[styles.testExtractButton, { backgroundColor: colors.spotEmerald }]}
+            onPress={async () => {
+              const text = await Clipboard.getStringAsync();
+              const url = text?.trim();
+              if (!url) {
+                Alert.alert('Clipboard empty', 'Copy a URL first.');
+                return;
+              }
+              Keyboard.dismiss();
+              testExtract(url);
+            }}
+          >
+            <Ionicons name="clipboard-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={styles.testExtractButtonText}>Paste & Extract</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Results */}
       {showLoading ? (
         <View style={styles.centered}>
@@ -159,6 +201,18 @@ export function SearchScreen() {
         />
       )}
 
+      {/* Share extraction loading overlay */}
+      {isExtracting && (
+        <View style={styles.extractionOverlay}>
+          <View style={[styles.extractionBox, { backgroundColor: colors.spotBackground }]}>
+            <ActivityIndicator size="large" color={colors.spotEmerald} />
+            <Text style={[styles.extractionText, { color: colors.spotTextPrimary }]}>
+              Extracting place...
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Save confirmation modal */}
       <SaveConfirmationModal
         visible={showConfirmation}
@@ -167,6 +221,7 @@ export function SearchScreen() {
         onCancel={() => {
           setShowConfirmation(false);
           setPlaceToSave(null);
+          clearShare();
         }}
       />
     </View>
@@ -209,5 +264,38 @@ const styles = StyleSheet.create({
   },
   resultAddress: {
     ...SpotTypography.footnote,
+  },
+  extractionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  extractionBox: {
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    gap: 16,
+  },
+  extractionText: {
+    ...SpotTypography.body,
+  },
+  testExtractRow: {
+    marginHorizontal: 16,
+    marginTop: 8,
+  },
+  testExtractButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  testExtractButtonText: {
+    color: '#fff',
+    ...SpotTypography.footnote,
+    fontWeight: '600' as const,
   },
 });
