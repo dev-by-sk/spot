@@ -6,8 +6,10 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
+  Animated,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +38,7 @@ export function SavedPlacesListScreen() {
   } = usePlaces();
   const { currentUserId } = useAuth();
   const colors = useSpotColors();
+  const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
   const [editingPlace, setEditingPlace] = useState<SavedPlaceLocal | null>(null);
@@ -125,32 +128,40 @@ export function SavedPlacesListScreen() {
   );
 
   const renderRightActions = useCallback(
-    (place: SavedPlaceLocal) => (
-      <View style={styles.swipeActions}>
-        <View style={[styles.swipeAction, { backgroundColor: colors.spotEmerald }]}>
-          <Ionicons
-            name="pencil"
-            size={20}
-            color="#FFFFFF"
+    (place: SavedPlaceLocal, progress: Animated.AnimatedInterpolation<number>) => {
+      const opacity = progress.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [0, 0, 1],
+      });
+
+      return (
+        <Animated.View style={[styles.swipeActions, { opacity }]}>
+          <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() => handleEditNote(place)}
-          />
-        </View>
-        <View style={[styles.swipeAction, { backgroundColor: colors.spotDanger }]}>
-          <Ionicons
-            name="trash"
-            size={20}
-            color="#FFFFFF"
+            style={[styles.swipeAction, { backgroundColor: colors.spotEmerald }]}
+          >
+            <Ionicons name="pencil" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() => handleDelete(place)}
-          />
-        </View>
-      </View>
-    ),
+            style={[styles.swipeAction, { backgroundColor: colors.spotDanger }]}
+          >
+            <Ionicons name="trash" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    },
     [colors, handleEditNote, handleDelete],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: SavedPlaceLocal }) => (
-      <Swipeable renderRightActions={() => renderRightActions(item)}>
+      <Swipeable
+        renderRightActions={(_progress) => renderRightActions(item, _progress)}
+        overshootRight={false}
+      >
         <View style={styles.cardContainer}>
           <PlaceCard place={item} />
         </View>
@@ -161,7 +172,7 @@ export function SavedPlacesListScreen() {
 
   if (savedPlaces.length === 0 && !isLoadingPlaces) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground }]}>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
         <Text style={[styles.emptyTitle, { color: colors.spotTextPrimary }]}>
           No saved spots yet
         </Text>
@@ -173,10 +184,19 @@ export function SavedPlacesListScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
-      {/* Header row with filter button */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => setShowFilterSheet(true)}>
+    <View style={[styles.container, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
+      {/* Header */}
+      <Text style={[styles.screenTitle, { color: colors.spotTextPrimary }]}>
+        My spots
+      </Text>
+
+      {/* Filter row */}
+      <View style={styles.filterRow}>
+        <FilterBar selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
+        <TouchableOpacity
+          onPress={() => setShowFilterSheet(true)}
+          style={styles.filterIconButton}
+        >
           <Ionicons
             name={hasAdvancedFilters ? 'options' : 'options-outline'}
             size={22}
@@ -184,8 +204,6 @@ export function SavedPlacesListScreen() {
           />
         </TouchableOpacity>
       </View>
-
-      <FilterBar selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
 
       <FlatList
         data={filteredPlaces}
@@ -256,12 +274,20 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     ...SpotTypography.body,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  screenTitle: {
+    ...SpotTypography.largeTitle,
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  filterIconButton: {
+    paddingHorizontal: 16,
   },
   listContent: {
     paddingVertical: 8,

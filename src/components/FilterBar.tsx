@@ -40,7 +40,7 @@ export function FilterBar({ selectedFilter, onFilterChange }: FilterBarProps) {
   );
 
   return (
-    <View accessibilityLabel="Category filters">
+    <View style={{ flex: 1 }} accessibilityLabel="Category filters">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

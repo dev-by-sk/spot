@@ -53,6 +53,7 @@ export function MainTabNavigator() {
         name="List"
         component={SavedPlacesListScreen}
         options={{
+          headerShown: false,
           title: 'My spots',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="list" size={size} color={color} />
