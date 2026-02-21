@@ -8,6 +8,9 @@ import {
   TouchableOpacity,
   Animated,
   StyleSheet,
+  LayoutAnimation,
+  UIManager,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -25,6 +28,10 @@ import { EditNoteModal } from './EditNoteModal';
 import { useSpotColors, spotEmerald } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 import type { SavedPlaceLocal } from '../../types';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export function SavedPlacesListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ListStackParamList>>();
@@ -111,11 +118,18 @@ export function SavedPlacesListScreen() {
   const handleDelete = useCallback(
     (place: SavedPlaceLocal) => {
       Alert.alert('Delete spot', `Remove ${place.name ?? 'this spot'}?`, [
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => openSwipeableRef.current?.close(),
+        },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => deletePlaceById(place.id, place.name ?? ''),
+          onPress: () => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            deletePlaceById(place.id, place.name ?? '');
+          },
         },
       ]);
     },
@@ -175,16 +189,23 @@ export function SavedPlacesListScreen() {
   const renderItem = useCallback(
     ({ item }: { item: SavedPlaceLocal }) => {
       let swipeRef: Swipeable | null = null;
+      let swiping = false;
       return (
         <Swipeable
           ref={(ref) => { swipeRef = ref; }}
           renderRightActions={(_progress) => renderRightActions(item, _progress)}
+          onSwipeableWillOpen={() => { swiping = true; }}
           onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
+          onSwipeableClose={() => { swiping = false; }}
           overshootRight={false}
         >
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('PlaceDetail', { place: item })}
+            onPress={() => {
+              if (!swiping) {
+                navigation.navigate('PlaceDetail', { place: item });
+              }
+            }}
             style={styles.cardContainer}
           >
             <PlaceCard place={item} />
