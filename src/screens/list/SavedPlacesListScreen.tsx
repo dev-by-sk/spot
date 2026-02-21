@@ -216,7 +216,13 @@ export function SavedPlacesListScreen() {
     [renderRightActions, handleSwipeOpen, navigation],
   );
 
-  if (savedPlaces.length === 0 && !isLoadingPlaces) {
+  if (isLoadingPlaces && savedPlaces.length === 0) {
+    return (
+      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]} />
+    );
+  }
+
+  if (savedPlaces.length === 0) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
         <Text style={[styles.emptyTitle, { color: colors.spotTextPrimary }]}>

@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Keyboard,
   StyleSheet,
   InteractionManager,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../../hooks/usePlaces';
 import { useAuth } from '../../hooks/useAuth';
@@ -39,6 +40,14 @@ export function SearchScreen() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [placeToSave, setPlaceToSave] = useState<PlaceCacheDTO | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  const isFocused = useIsFocused();
+
+  React.useEffect(() => {
+    if (!isFocused) {
+      setSearchQuery('');
+    }
+  }, [isFocused, setSearchQuery]);
 
   const debouncedQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
 
@@ -108,7 +117,7 @@ export function SearchScreen() {
   const showNoResults = !isSearching && searchQuery.trim().length > 0 && searchResults.length === 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
+    <View style={[styles.container, { backgroundColor: colors.spotBackground }]} onTouchStart={Keyboard.dismiss}>
       {/* Search bar */}
       <View style={[styles.searchBar, { backgroundColor: colors.spotSearchBar }]}>
         <Ionicons name="search" size={18} color={colors.spotTextSecondary} />

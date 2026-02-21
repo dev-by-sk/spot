@@ -10,7 +10,7 @@ interface UseSavedPlacesReturn {
 
 export function useSavedPlaces(): UseSavedPlacesReturn {
   const [places, setPlaces] = useState<SavedPlaceLocal[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async (userId: string) => {
     setIsLoading(true);
