@@ -34,7 +34,41 @@ interface PageMetadata {
   description: string | null;
 }
 
+async function fetchOEmbed(oEmbedUrl: string): Promise<PageMetadata | null> {
+  try {
+    const response = await fetch(oEmbedUrl);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const title = data.title || null;
+    // oEmbed doesn't have a description field, but author_name can provide context
+    const description = data.author_name ? `by ${data.author_name}` : null;
+    if (!title && !description) return null;
+    return { title, description };
+  } catch (error) {
+    console.warn('[Share] oEmbed fetch failed:', error);
+    return null;
+  }
+}
+
+function getOEmbedUrl(url: string): string | null {
+  if (/tiktok\.com/i.test(url) || /vm\.tiktok\.com/i.test(url)) {
+    return `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+  }
+  if (/instagram\.com/i.test(url)) {
+    return `https://www.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
+  }
+  return null;
+}
+
 async function fetchPageMetadata(url: string): Promise<PageMetadata | null> {
+  // Try oEmbed first for supported platforms (TikTok, Instagram)
+  const oEmbedUrl = getOEmbedUrl(url);
+  if (oEmbedUrl) {
+    const oEmbedResult = await fetchOEmbed(oEmbedUrl);
+    if (oEmbedResult) return oEmbedResult;
+  }
+
+  // Fallback: scrape HTML metadata
   try {
     const response = await fetch(url, {
       headers: {
@@ -70,7 +104,7 @@ async function extractPlaceNameWithLLM(
   description: string | null,
 ): Promise<LLMExtraction | null> {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-place`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-tiktok`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

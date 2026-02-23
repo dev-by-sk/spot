@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
 const SYSTEM_PROMPT = `You extract restaurant/cafe/bar names from social media post metadata.
 
@@ -32,9 +32,9 @@ serve(async (req) => {
       return Response.json({ placeName: null, location: null });
     }
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!OPENAI_API_KEY) {
       return Response.json(
-        { error: "ANTHROPIC_API_KEY not configured" },
+        { error: "OPENAI_API_KEY not configured" },
         { status: 500 }
       );
     }
@@ -46,24 +46,25 @@ serve(async (req) => {
       .filter(Boolean)
       .join("\n");
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "gpt-4o-mini",
         max_tokens: 150,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
       }),
     });
 
     if (!response.ok) {
       const err = await response.text();
-      console.error("[extract-place] Anthropic API error:", err);
+      console.error("[extract-place] OpenAI API error:", err);
       return Response.json(
         { error: "LLM request failed" },
         { status: 502 }
@@ -71,9 +72,9 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text ?? "";
+    const text = data.choices?.[0]?.message?.content ?? "";
 
-    // Parse the JSON from Claude's response
+    // Parse the JSON from the response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return Response.json({ placeName: null, location: null });
