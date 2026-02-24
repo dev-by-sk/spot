@@ -35,7 +35,7 @@ serve(async (req) => {
     if (!OPENAI_API_KEY) {
       return Response.json(
         { error: "OPENAI_API_KEY not configured" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -65,10 +65,7 @@ serve(async (req) => {
     if (!response.ok) {
       const err = await response.text();
       console.error("[extract-place] OpenAI API error:", err);
-      return Response.json(
-        { error: "LLM request failed" },
-        { status: 502 }
-      );
+      return Response.json({ error: "LLM request failed" }, { status: 502 });
     }
 
     const data = await response.json();
@@ -87,9 +84,6 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("[extract-place] Error:", error);
-    return Response.json(
-      { error: "Internal error" },
-      { status: 500 }
-    );
+    return Response.json({ error: "Internal error" }, { status: 500 });
   }
 });
