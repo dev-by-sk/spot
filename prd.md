@@ -124,9 +124,7 @@ A mobile iOS app that lets users quickly save restaurants and activities they di
 
 **Methods:**
 
-- Apple ID
 - Google login
-- Phone number OTP
 
 **Rules:**
 
@@ -275,11 +273,9 @@ Predefined only.
 
 ## 7. Screens
 
-### Auth Screens
+### Auth Screen
 
-- Login
-- Sign up
-- Provider selection
+- Login (Google)
 
 ### Main Tabs (MVP)
 

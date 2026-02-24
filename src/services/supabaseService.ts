@@ -19,15 +19,6 @@ export async function getCurrentSession(): Promise<UserSession | null> {
   };
 }
 
-export async function signInWithApple(idToken: string): Promise<string> {
-  const { data, error } = await supabase.auth.signInWithIdToken({
-    provider: 'apple',
-    token: idToken,
-  });
-  if (error) throw error;
-  return data.user.id;
-}
-
 export async function signInWithGoogle(
   idToken: string,
   accessToken: string,
