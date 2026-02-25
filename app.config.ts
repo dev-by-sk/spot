@@ -40,6 +40,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-sqlite',
     'expo-screen-orientation',
     'expo-web-browser',
+    [
+      'expo-share-intent',
+      {
+        iosActivationRules: {
+          NSExtensionActivationSupportsWebURLWithMaxCount: 1,
+          NSExtensionActivationSupportsText: true,
+        },
+      },
+    ],
   ],
   extra: {
     supabaseUrl: process.env.SUPABASE_URL,

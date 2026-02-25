@@ -5,16 +5,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  // Platform,
 } from 'react-native';
-// import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 
 export function LoginScreen() {
-  const { /* signInWithApple, */ signInWithGoogle, isLoading, errorMessage } = useAuth();
+  const { signInWithGoogle, isLoading, errorMessage } = useAuth();
   const colors = useSpotColors();
 
   return (
@@ -33,20 +31,6 @@ export function LoginScreen() {
 
       {/* Auth buttons */}
       <View style={styles.authSection}>
-        {/* Apple Sign-In (iOS only) — temporarily disabled
-        {Platform.OS === 'ios' && (
-          <View style={[styles.appleButtonWrapper, { borderColor: colors.spotDivider }]}>
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
-              cornerRadius={11}
-              style={styles.appleButton}
-              onPress={signInWithApple}
-            />
-          </View>
-        )}
-        */}
-
         {/* Google Sign-In */}
         <TouchableOpacity
           onPress={signInWithGoogle}
@@ -114,14 +98,6 @@ const styles = StyleSheet.create({
   authSection: {
     paddingHorizontal: 24,
     gap: 12,
-  },
-  appleButtonWrapper: {
-    borderWidth: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  appleButton: {
-    height: 52,
   },
   googleButton: {
     flexDirection: 'row',

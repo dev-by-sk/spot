@@ -1,35 +1,74 @@
 import * as GooglePlacesService from './googlePlacesService';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
 import type { PlaceSearchResult } from '../types';
-
-const PLATFORM_SUFFIXES = [
-  ' | TikTok',
-  ' - TikTok',
-  ' - Instagram',
-  ' | Instagram',
-  ' on Instagram',
-  ' - YouTube',
-  ' | YouTube',
-  ' - Yelp',
-  ' | Yelp',
-  ' - Google Maps',
-];
 
 /**
  * Extract a place from a shared URL.
- * Flow: URL → fetch HTML metadata → clean title → Google Places search → return top result
+ * Flow: URL → fetch HTML metadata → LLM extracts place name → Google Places search → return top result
  */
 export async function extractPlaceFromURL(url: string): Promise<PlaceSearchResult | null> {
-  const title = await fetchAndExtractTitle(url);
-  if (!title) return null;
+  const metadata = await fetchPageMetadata(url);
+  if (!metadata) return null;
 
-  const cleaned = cleanTitle(title);
-  if (!cleaned) return null;
+  console.log('[Share] Extracted metadata:', metadata);
 
-  const results = await GooglePlacesService.searchPlace(cleaned);
+  const extracted = await extractPlaceNameWithLLM(metadata.title, metadata.description);
+  if (!extracted?.placeName) {
+    console.warn('[Share] LLM could not identify a place from metadata');
+    return null;
+  }
+
+  console.log('[Share] LLM extracted:', extracted);
+
+  // Build search query: "Place Name City" for better matching
+  const query = extracted.location
+    ? `${extracted.placeName} ${extracted.location}`
+    : extracted.placeName;
+
+  const results = await GooglePlacesService.searchPlace(query);
   return results.length > 0 ? results[0] : null;
 }
 
-async function fetchAndExtractTitle(url: string): Promise<string | null> {
+interface PageMetadata {
+  title: string | null;
+  description: string | null;
+}
+
+async function fetchOEmbed(oEmbedUrl: string): Promise<PageMetadata | null> {
+  try {
+    const response = await fetch(oEmbedUrl);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const title = data.title || null;
+    // oEmbed doesn't have a description field, but author_name can provide context
+    const description = data.author_name ? `by ${data.author_name}` : null;
+    if (!title && !description) return null;
+    return { title, description };
+  } catch (error) {
+    console.warn('[Share] oEmbed fetch failed:', error);
+    return null;
+  }
+}
+
+function getOEmbedUrl(url: string): string | null {
+  if (/tiktok\.com/i.test(url) || /vm\.tiktok\.com/i.test(url)) {
+    return `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+  }
+  if (/instagram\.com/i.test(url)) {
+    return `https://www.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
+  }
+  return null;
+}
+
+async function fetchPageMetadata(url: string): Promise<PageMetadata | null> {
+  // Try oEmbed first for supported platforms (TikTok, Instagram)
+  const oEmbedUrl = getOEmbedUrl(url);
+  if (oEmbedUrl) {
+    const oEmbedResult = await fetchOEmbed(oEmbedUrl);
+    if (oEmbedResult) return oEmbedResult;
+  }
+
+  // Fallback: scrape HTML metadata
   try {
     const response = await fetch(url, {
       headers: {
@@ -39,15 +78,50 @@ async function fetchAndExtractTitle(url: string): Promise<string | null> {
     });
     const html = await response.text();
 
-    // Try og:title first
     const ogTitle = extractMetaContent(html, 'og:title');
-    if (ogTitle) return ogTitle;
+    const ogDesc = extractMetaContent(html, 'og:description');
+    const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
 
-    // Fall back to <title>
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    return titleMatch ? titleMatch[1].trim() : null;
+    const title = ogTitle ?? (titleTag ? titleTag[1].trim() : null);
+    const description = ogDesc ?? null;
+
+    if (!title && !description) return null;
+
+    return { title, description };
   } catch (error) {
     console.warn('[Share] Failed to fetch URL:', error);
+    return null;
+  }
+}
+
+interface LLMExtraction {
+  placeName: string | null;
+  location: string | null;
+}
+
+async function extractPlaceNameWithLLM(
+  title: string | null,
+  description: string | null,
+): Promise<LLMExtraction | null> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-tiktok`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ title, description }),
+    });
+
+    if (!response.ok) {
+      console.warn('[Share] extract-place function failed:', response.status);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.warn('[Share] LLM extraction failed:', error);
     return null;
   }
 }
@@ -68,14 +142,4 @@ function extractMetaContent(html: string, property: string): string | null {
   );
   const match2 = html.match(pattern2);
   return match2 ? match2[1] : null;
-}
-
-function cleanTitle(title: string): string {
-  let cleaned = title;
-  for (const suffix of PLATFORM_SUFFIXES) {
-    if (cleaned.endsWith(suffix)) {
-      cleaned = cleaned.slice(0, -suffix.length);
-    }
-  }
-  return cleaned.trim();
 }

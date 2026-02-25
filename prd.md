@@ -8,7 +8,7 @@ A mobile iOS app that lets users quickly save restaurants and activities they di
 
 - Share from TikTok/IG → save
 - Google Places autocomplete search → save
-- *(Later)* Photo + AI recognition
+- _(Later)_ Photo + AI recognition
 
 ---
 
@@ -57,12 +57,12 @@ A mobile iOS app that lets users quickly save restaurants and activities they di
 
 ### Offline Behavior
 
-| Allowed Offline | Not Allowed Offline |
-|---|---|
-| View saved places | Search |
-| View notes | Link extraction |
-| | Google API data refresh |
-| | Filtering by distance |
+| Allowed Offline   | Not Allowed Offline     |
+| ----------------- | ----------------------- |
+| View saved places | Search                  |
+| View notes        | Link extraction         |
+|                   | Google API data refresh |
+|                   | Filtering by distance   |
 
 ---
 
@@ -124,9 +124,7 @@ A mobile iOS app that lets users quickly save restaurants and activities they di
 
 **Methods:**
 
-- Apple ID
 - Google login
-- Phone number OTP
 
 **Rules:**
 
@@ -140,15 +138,15 @@ Required before saving.
 
 **Fields:**
 
-| Field | Required |
-|---|---|
-| Place name | Yes |
-| Address | Yes |
-| Category | Yes |
-| Cuisine | Yes |
-| Rating | Yes |
-| Price range | Yes |
-| User note | No (text field) |
+| Field        | Required         |
+| ------------ | ---------------- |
+| Place name   | Yes              |
+| Address      | Yes              |
+| Category     | Yes              |
+| Cuisine      | Yes              |
+| Rating       | Yes              |
+| Price range  | Yes              |
+| User note    | No (text field)  |
 | Date visited | No (date picker) |
 
 **Actions:** Save / Cancel
@@ -168,17 +166,17 @@ Required before saving.
 
 **Stored Data:**
 
-| Field | Purpose |
-|---|---|
-| Google Place ID | Primary reference |
-| Name | Display |
-| Address | Display |
-| Lat/Lng | Distance filter |
-| Rating | Display |
-| Price level | Display / filter |
-| Types | Category mapping |
-| Cuisine tags | Mapped from Google types |
-| Category | Mapped from Google types |
+| Field           | Purpose                  |
+| --------------- | ------------------------ |
+| Google Place ID | Primary reference        |
+| Name            | Display                  |
+| Address         | Display                  |
+| Lat/Lng         | Distance filter          |
+| Rating          | Display                  |
+| Price level     | Display / filter         |
+| Types           | Category mapping         |
+| Cuisine tags    | Mapped from Google types |
+| Category        | Mapped from Google types |
 
 > Cached snapshots reduce repeated API calls and enable offline viewing.
 
@@ -224,12 +222,12 @@ Predefined only.
 
 ### 5.9 Offline Mode
 
-| Cached Locally | Disabled Offline |
-|---|---|
-| Saved places | Search |
-| Notes | Share-save matching |
+| Cached Locally         | Disabled Offline    |
+| ---------------------- | ------------------- |
+| Saved places           | Search              |
+| Notes                  | Share-save matching |
 | Cached snapshot fields | Filters by distance |
-| | Google refresh |
+|                        | Google refresh      |
 
 ---
 
@@ -237,57 +235,55 @@ Predefined only.
 
 ### User
 
-| Field | Type |
-|---|---|
-| `user_id` | PK |
-| `email` | string |
-| `auth_provider` | string |
-| `profile_private` | bool |
-| `created_at` | timestamp |
+| Field             | Type      |
+| ----------------- | --------- |
+| `user_id`         | PK        |
+| `email`           | string    |
+| `auth_provider`   | string    |
+| `profile_private` | bool      |
+| `created_at`      | timestamp |
 
 ### SavedPlace
 
-| Field | Type |
-|---|---|
-| `id` | PK |
-| `user_id` | FK → User |
+| Field             | Type            |
+| ----------------- | --------------- |
+| `id`              | PK              |
+| `user_id`         | FK → User       |
 | `google_place_id` | FK → PlaceCache |
-| `note_text` | text |
-| `date_visited` | nullable date |
-| `saved_at` | timestamp |
+| `note_text`       | text            |
+| `date_visited`    | nullable date   |
+| `saved_at`        | timestamp       |
 
 ### PlaceCache
 
-| Field | Type |
-|---|---|
-| `google_place_id` | PK |
-| `name` | string |
-| `address` | string |
-| `lat` | float |
-| `lng` | float |
-| `rating` | float |
-| `price_level` | int |
-| `category` | string |
-| `cuisine` | string |
-| `last_refreshed` | timestamp |
+| Field             | Type      |
+| ----------------- | --------- |
+| `google_place_id` | PK        |
+| `name`            | string    |
+| `address`         | string    |
+| `lat`             | float     |
+| `lng`             | float     |
+| `rating`          | float     |
+| `price_level`     | int       |
+| `category`        | string    |
+| `cuisine`         | string    |
+| `last_refreshed`  | timestamp |
 
 ---
 
 ## 7. Screens
 
-### Auth Screens
+### Auth Screen
 
-- Login
-- Sign up
-- Provider selection
+- Login (Google)
 
 ### Main Tabs (MVP)
 
-| Tab | Contents |
-|---|---|
-| **List** | Saved places list, filter button, sort newest |
-| **Search** | Google autocomplete search → select → confirmation → save |
-| **Profile** | Privacy toggle, logout |
+| Tab         | Contents                                                  |
+| ----------- | --------------------------------------------------------- |
+| **List**    | Saved places list, filter button, sort newest             |
+| **Search**  | Google autocomplete search → select → confirmation → save |
+| **Profile** | Privacy toggle, logout                                    |
 
 > Map tab hidden entirely in MVP.
 

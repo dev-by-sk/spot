@@ -1,6 +1,4 @@
 import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
-import { Platform } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as SupabaseService from '../services/supabaseService';
@@ -17,7 +15,6 @@ export interface AuthContextValue {
   currentUserId: string | null;
   userEmail: string | null;
   checkSession: () => Promise<void>;
-  signInWithApple: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -30,7 +27,6 @@ export const AuthContext = createContext<AuthContextValue>({
   currentUserId: null,
   userEmail: null,
   checkSession: async () => {},
-  signInWithApple: async () => {},
   signInWithGoogle: async () => {},
   signOut: async () => {},
   deleteAccount: async () => {},
@@ -82,42 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
-
-  const signInWithApple = useCallback(async () => {
-    if (Platform.OS !== 'ios') return;
-
-    setIsLoading(true);
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      if (!credential.identityToken) {
-        setIsLoading(false);
-        setErrorWithAutoDismiss('Failed to get Apple ID credentials');
-        return;
-      }
-
-      const userId = await SupabaseService.signInWithApple(credential.identityToken);
-      setCurrentUserId(userId);
-      if (credential.email) {
-        setUserEmail(credential.email);
-      }
-      setIsAuthenticated(true);
-
-      analytics.identify(userId, { provider: 'apple' });
-      analytics.track(AnalyticsEvent.SignInCompleted, { provider: 'apple' });
-    } catch (error: any) {
-      if (error.code !== 'ERR_REQUEST_CANCELED') {
-        setErrorWithAutoDismiss('Sign in failed. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [setErrorWithAutoDismiss]);
 
   const signInWithGoogle = useCallback(async () => {
     setIsLoading(true);
@@ -225,7 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         currentUserId,
         userEmail,
         checkSession,
-        signInWithApple,
         signInWithGoogle,
         signOut: handleSignOut,
         deleteAccount,
