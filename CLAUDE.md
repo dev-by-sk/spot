@@ -60,12 +60,14 @@ Key root files: `App.tsx` (root component with provider tree), `app.config.ts` (
 ## Architecture
 
 ### Provider Tree (App.tsx)
+
 ```
 ErrorBoundary → GestureHandlerRootView → SafeAreaProvider → ShareIntentProvider
   → DatabaseProvider → AuthProvider → PlacesProvider → ShareProvider → RootNavigator
 ```
 
 ### Navigation Flow
+
 ```
 Splash → Onboarding → Login → MainTabs
                                 ├── List tab (SavedPlacesListScreen → SpotDetailScreen)
@@ -74,28 +76,33 @@ Splash → Onboarding → Login → MainTabs
 ```
 
 ### Data Flow
+
 - **Offline-first:** SQLite is source of truth locally; Supabase syncs in background
 - **Sync strategy:** Server-wins on pull, push locally-created places that aren't on server
 - **Share extraction pipeline:** URL → oEmbed/HTML scrape → LLM extraction (edge function) → Google Places search → save
 
 ### Key Services
-| Service | Purpose |
-|---------|---------|
-| `supabaseService.ts` | Remote DB CRUD, auth, profile management |
-| `googlePlacesService.ts` | Google Places autocomplete/details/search (via edge function proxy) |
-| `shareExtractionService.ts` | Extract place info from shared URLs using LLM |
-| `syncService.ts` | Bidirectional SQLite ↔ Supabase sync |
-| `locationService.ts` | Location permissions and geocoding |
-| `analyticsService.ts` | PostHog event tracking |
+
+| Service                     | Purpose                                                             |
+| --------------------------- | ------------------------------------------------------------------- |
+| `supabaseService.ts`        | Remote DB CRUD, auth, profile management                            |
+| `googlePlacesService.ts`    | Google Places autocomplete/details/search (via edge function proxy) |
+| `shareExtractionService.ts` | Extract place info from shared URLs using LLM                       |
+| `syncService.ts`            | Bidirectional SQLite ↔ Supabase sync                                |
+| `locationService.ts`        | Location permissions and geocoding                                  |
+| `analyticsService.ts`       | PostHog event tracking                                              |
 
 ## Data Model
 
 ### SQLite Tables (local)
+
 - **`place_cache`** — Cached Google Places data (google_place_id PK, name, address, lat/lng, rating, price_level, category, cuisine)
 - **`saved_places`** — User's saved places (id PK, user_id, google_place_id FK, note_text, date_visited, saved_at)
 
 ### Supabase Tables (remote)
+
 Same as above plus:
+
 - **`users`** — User profiles (id, email, auth_provider, profile_private, created_at, deleted_at for soft delete)
 
 ## Naming Conventions
@@ -110,6 +117,7 @@ Same as above plus:
 ## Types
 
 Key types in `src/types/`:
+
 - `SavedPlaceDTO` / `SavedPlaceLocal` — snake_case for DB, camelCase for services
 - `PlaceCacheDTO` — Cached place data
 - `PlaceSearchResult` — Google Places search result
@@ -119,6 +127,7 @@ Key types in `src/types/`:
 ## Environment Variables
 
 Required in `.env` (see `.env.example`):
+
 ```
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
@@ -128,6 +137,7 @@ SENTRY_DSN=            # optional
 ```
 
 Edge function env (set in Supabase dashboard):
+
 - `OPENAI_API_KEY` — For GPT-4o-mini place extraction
 
 ## App Config
@@ -146,6 +156,7 @@ Edge function env (set in Supabase dashboard):
 ## Known Issues
 
 See `ISSUES.md` for 28 tracked issues. Critical blockers include:
+
 - Edge functions have wide-open CORS and no auth
 - No rate limiting on APIs
 - Auth tokens stored in unencrypted AsyncStorage
