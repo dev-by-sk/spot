@@ -1,5 +1,5 @@
 import * as GooglePlacesService from './googlePlacesService';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabase } from '../config/supabase';
 import type { PlaceSearchResult } from '../types';
 
 /**
@@ -104,11 +104,19 @@ async function extractPlaceNameWithLLM(
   description: string | null,
 ): Promise<LLMExtraction | null> {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      console.warn('[Share] No auth session — cannot call extract-place');
+      return null;
+    }
+
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-tiktok`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${accessToken}`,
         apikey: SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({ title, description }),
