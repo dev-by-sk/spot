@@ -238,9 +238,14 @@ export function SavedPlacesListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
       {/* Header */}
-      <Text style={[styles.screenTitle, { color: colors.spotTextPrimary }]}>
-        My spots
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={[styles.screenTitle, { color: colors.spotTextPrimary }]}>
+          My spots
+        </Text>
+        <Text style={[styles.screenTitleCount, { color: colors.spotTextSecondary }]}>
+          {filteredPlaces.length}
+        </Text>
+      </View>
 
       {/* Filter row */}
       <View style={styles.filterRow}>
@@ -330,11 +335,19 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     ...SpotTypography.body,
   },
-  screenTitle: {
-    ...SpotTypography.largeTitle,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 4,
+  },
+  screenTitle: {
+    ...SpotTypography.largeTitle,
+  },
+  screenTitleCount: {
+    ...SpotTypography.title2,
   },
   filterRow: {
     flexDirection: 'row',

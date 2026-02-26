@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { ShareIntentProvider } from 'expo-share-intent';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { useFonts, PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { DatabaseProvider } from './src/db/database';
 import { AuthProvider } from './src/context/AuthContext';
@@ -28,10 +29,19 @@ const linking = {
 };
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+  });
+
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     analytics.configure();
   }, []);
+
+  if (!fontsLoaded) return null;
 
   return (
     <ErrorBoundary>
