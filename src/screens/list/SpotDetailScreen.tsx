@@ -48,9 +48,11 @@ export function SpotDetailScreen({ route, navigation }: Props) {
     }
   }, [place]);
 
+  const hasInfoSection = (place.rating != null && place.rating > 0) || priceLabel || place.address;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
-      {/* Custom header */}
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -62,7 +64,7 @@ export function SpotDetailScreen({ route, navigation }: Props) {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Name */}
@@ -70,7 +72,7 @@ export function SpotDetailScreen({ route, navigation }: Props) {
           {place.name ?? 'Unknown'}
         </Text>
 
-        {/* Category + cuisine row */}
+        {/* Category + cuisine */}
         <View style={styles.tagRow}>
           {place.category ? (
             <View style={[styles.badge, { backgroundColor: `${colors.spotEmerald}1A` }]}>
@@ -86,74 +88,94 @@ export function SpotDetailScreen({ route, navigation }: Props) {
           ) : null}
         </View>
 
-        {/* Meta info */}
-        <View style={styles.metaSection}>
-          {place.rating != null && place.rating > 0 ? (
-            <View style={styles.metaRow}>
-              <Ionicons name="star" size={16} color="#F59E0B" />
-              <Text style={[styles.metaText, { color: colors.spotTextPrimary }]}>
-                {place.rating.toFixed(1)}
-              </Text>
-            </View>
-          ) : null}
+        {/* Info card */}
+        {hasInfoSection ? (
+          <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+            {place.rating != null && place.rating > 0 ? (
+              <>
+                <View style={styles.cardRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                    <Ionicons name="star" size={15} color="#F59E0B" />
+                  </View>
+                  <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Rating</Text>
+                  <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                    {place.rating.toFixed(1)}
+                  </Text>
+                </View>
+                {(priceLabel || place.address) ? (
+                  <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+                ) : null}
+              </>
+            ) : null}
 
-          {priceLabel ? (
-            <View style={styles.metaRow}>
-              <Ionicons name="cash-outline" size={16} color={colors.spotEmerald} />
-              <Text style={[styles.metaText, { color: colors.spotTextPrimary }]}>
-                {priceLabel}
-              </Text>
-            </View>
-          ) : null}
+            {priceLabel ? (
+              <>
+                <View style={styles.cardRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                    <Ionicons name="cash-outline" size={15} color={colors.spotEmerald} />
+                  </View>
+                  <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Price</Text>
+                  <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                    {priceLabel}
+                  </Text>
+                </View>
+                {place.address ? (
+                  <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+                ) : null}
+              </>
+            ) : null}
 
-          {place.address ? (
-            <TouchableOpacity style={styles.metaRow} onPress={openInMaps} activeOpacity={0.6}>
-              <Ionicons name="location-outline" size={16} color={colors.spotEmerald} />
-              <Text style={[styles.metaText, { color: colors.spotEmerald, flex: 1 }]}>
-                {place.address}
-              </Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Divider */}
-        <View style={[styles.divider, { backgroundColor: colors.spotDivider }]} />
-
-        {/* Note */}
-        <Text style={[styles.sectionTitle, { color: colors.spotTextPrimary }]}>
-          Your note
-        </Text>
-        {place.note_text ? (
-          <Text style={[styles.noteText, { color: colors.spotTextPrimary }]}>
-            {place.note_text}
-          </Text>
-        ) : (
-          <Text style={[styles.noteText, { color: colors.spotTextSecondary, fontStyle: 'italic' }]}>
-            No note added yet
-          </Text>
-        )}
-
-        {/* Date visited */}
-        {place.date_visited ? (
-          <>
-            <View style={[styles.divider, { backgroundColor: colors.spotDivider }]} />
-            <View style={styles.metaRow}>
-              <Ionicons name="calendar-outline" size={16} color={colors.spotEmerald} />
-              <Text style={[styles.metaText, { color: colors.spotTextPrimary }]}>
-                Visited {relativeDate(place.date_visited)}
-              </Text>
-            </View>
-          </>
+            {place.address ? (
+              <TouchableOpacity style={styles.cardRow} onPress={openInMaps} activeOpacity={0.6}>
+                <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                  <Ionicons name="location-outline" size={15} color={colors.spotEmerald} />
+                </View>
+                <Text style={[styles.cardRowValue, { color: colors.spotEmerald, flex: 1 }]} numberOfLines={2}>
+                  {place.address}
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         ) : null}
 
-        {/* Saved on */}
-        <View style={[styles.divider, { backgroundColor: colors.spotDivider }]} />
-        <View style={styles.metaRow}>
-          <Ionicons name="bookmark-outline" size={16} color={colors.spotEmerald} />
-          <Text style={[styles.metaText, { color: colors.spotTextSecondary }]}>
-            Saved {relativeDate(place.saved_at)}
+        {/* Note card */}
+        <Text style={[styles.sectionLabel, { color: colors.spotTextSecondary }]}>YOUR NOTE</Text>
+        <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+          <Text style={[
+            styles.noteText,
+            { color: place.note_text ? colors.spotTextPrimary : colors.spotTextSecondary,
+              fontStyle: place.note_text ? 'normal' : 'italic' }
+          ]}>
+            {place.note_text || 'No note added yet'}
           </Text>
+        </View>
+
+        {/* Footer meta */}
+        <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+          {place.date_visited ? (
+            <>
+              <View style={styles.cardRow}>
+                <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                  <Ionicons name="calendar-outline" size={15} color={colors.spotEmerald} />
+                </View>
+                <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Visited</Text>
+                <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                  {relativeDate(place.date_visited)}
+                </Text>
+              </View>
+              <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+            </>
+          ) : null}
+          <View style={styles.cardRow}>
+            <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+              <Ionicons name="bookmark-outline" size={15} color={colors.spotEmerald} />
+            </View>
+            <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Saved</Text>
+            <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+              {relativeDate(place.saved_at)}
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -174,17 +196,17 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   name: {
     ...SpotTypography.largeTitle,
-    marginBottom: 12,
+    marginTop: 4,
   },
   tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 20,
   },
   badge: {
     paddingHorizontal: 10,
@@ -198,27 +220,53 @@ const styles = StyleSheet.create({
   cuisine: {
     ...SpotTypography.subheadline,
   },
-  metaSection: {
-    gap: 12,
+  card: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    overflow: 'hidden',
   },
-  metaRow: {
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 12,
   },
-  metaText: {
-    ...SpotTypography.body,
-  },
-  divider: {
+  cardDivider: {
     height: StyleSheet.hairlineWidth,
-    marginVertical: 20,
+    marginLeft: 52,
   },
-  sectionTitle: {
-    ...SpotTypography.title3,
-    marginBottom: 8,
+  iconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardRowLabel: {
+    ...SpotTypography.subheadline,
+    flex: 1,
+  },
+  cardRowValue: {
+    ...SpotTypography.subheadline,
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+  sectionLabel: {
+    ...SpotTypography.caption,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    marginTop: 4,
+    marginLeft: 4,
   },
   noteText: {
     ...SpotTypography.body,
     lineHeight: 24,
+    padding: 14,
   },
 });
