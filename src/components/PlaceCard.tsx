@@ -27,6 +27,7 @@ export function PlaceCard({ place }: PlaceCardProps) {
         styles.card,
         {
           backgroundColor: colors.spotCardBackground,
+          borderLeftColor: colors.spotEmerald,
         },
       ]}
       accessibilityLabel={accessibilityParts.join(', ')}
@@ -102,11 +103,12 @@ const styles = StyleSheet.create({
   card: {
     padding: 16,
     borderRadius: 12,
+    borderLeftWidth: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
     gap: 8,
   },
   nameRow: {

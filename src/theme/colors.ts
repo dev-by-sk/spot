@@ -10,11 +10,11 @@ export const spotDanger = '#DC2626';
 
 // ── Adaptive colors (light / dark) ──
 const lightColors = {
-  spotTextPrimary: '#000000',
+  spotTextPrimary: '#111827',
   spotTextSecondary: '#6B7280',
-  spotBackground: '#FFFFFF',
-  spotCardBackground: '#F3F4F6',
-  spotDivider: '#D1D5DB',
+  spotBackground: '#FAFAF9',
+  spotCardBackground: '#FFFFFF',
+  spotDivider: '#E5E7EB',
   spotSearchBar: '#F3F4F6',
 };
 
