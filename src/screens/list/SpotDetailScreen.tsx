@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +18,35 @@ export function SpotDetailScreen({ route, navigation }: Props) {
   const priceLabel = place.price_level
     ? '$'.repeat(place.price_level)
     : null;
+
+  const openInMaps = useCallback(async () => {
+    const { lat, lng, name, address } = place;
+    let url: string;
+
+    if (lat != null && lng != null) {
+      const label = encodeURIComponent(name ?? address ?? 'Place');
+      url = Platform.OS === 'ios'
+        ? `maps://?q=${label}&ll=${lat},${lng}`
+        : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+    } else if (address) {
+      const query = encodeURIComponent(address);
+      url = Platform.OS === 'ios'
+        ? `maps://?q=${query}`
+        : `geo:0,0?q=${query}`;
+    } else {
+      return;
+    }
+
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      Linking.openURL(url);
+    } else {
+      const query = lat != null && lng != null
+        ? `${lat},${lng}`
+        : encodeURIComponent(address ?? '');
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+    }
+  }, [place]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
@@ -78,12 +107,13 @@ export function SpotDetailScreen({ route, navigation }: Props) {
           ) : null}
 
           {place.address ? (
-            <View style={styles.metaRow}>
+            <TouchableOpacity style={styles.metaRow} onPress={openInMaps} activeOpacity={0.6}>
               <Ionicons name="location-outline" size={16} color={colors.spotEmerald} />
-              <Text style={[styles.metaText, { color: colors.spotTextPrimary, flex: 1 }]}>
+              <Text style={[styles.metaText, { color: colors.spotEmerald, flex: 1 }]}>
                 {place.address}
               </Text>
-            </View>
+              <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} />
+            </TouchableOpacity>
           ) : null}
         </View>
 
