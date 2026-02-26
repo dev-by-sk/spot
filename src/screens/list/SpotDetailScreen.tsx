@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,6 +21,7 @@ export function SpotDetailScreen({ route, navigation }: Props) {
     : null;
 
   const openInMaps = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const { lat, lng, name, address } = place;
     let url: string;
 

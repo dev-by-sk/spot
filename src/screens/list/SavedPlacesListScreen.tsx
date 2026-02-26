@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ListStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
 import { usePlaces } from '../../hooks/usePlaces';
 import { useAuth } from '../../hooks/useAuth';
 import { PlaceCard } from '../../components/PlaceCard';
@@ -117,6 +118,7 @@ export function SavedPlacesListScreen() {
 
   const handleDelete = useCallback(
     (place: SavedPlaceLocal) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Delete spot', `Remove ${place.name ?? 'this spot'}?`, [
         {
           text: 'Cancel',
@@ -137,6 +139,7 @@ export function SavedPlacesListScreen() {
   );
 
   const handleEditNote = useCallback((place: SavedPlaceLocal) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingPlace(place);
   }, []);
 
@@ -184,6 +187,7 @@ export function SavedPlacesListScreen() {
       openSwipeableRef.current.close();
     }
     openSwipeableRef.current = ref;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   const renderItem = useCallback(
@@ -368,6 +372,11 @@ const styles = StyleSheet.create({
   swipeActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginVertical: 6,
+    marginRight: 16,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: 'hidden',
   },
   swipeAction: {
     justifyContent: 'center',

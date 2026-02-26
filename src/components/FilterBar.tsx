@@ -1,5 +1,6 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSpotColors } from '../theme/colors';
 import { SpotTypography } from '../theme/typography';
 import { ALL_CATEGORIES, PlaceCategory } from '../types';
@@ -15,7 +16,7 @@ export function FilterBar({ selectedFilter, onFilterChange }: FilterBarProps) {
   const renderChip = (label: string, isSelected: boolean, onPress: () => void) => (
     <TouchableOpacity
       key={label}
-      onPress={onPress}
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityState={{ selected: isSelected }}
