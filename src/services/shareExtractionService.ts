@@ -118,11 +118,27 @@ interface LLMExtraction {
   location: string | null;
 }
 
+const MAX_LLM_INPUT_CHARS = 500;
+
+function sanitizeForLLM(text: string | null): string | null {
+  if (!text) return null;
+  return text
+    .replace(/<[^>]*>/g, ' ')      // strip HTML tags
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // strip control chars
+    .trim()
+    .slice(0, MAX_LLM_INPUT_CHARS) || null;
+}
+
 async function extractPlaceNameWithLLM(
   title: string | null,
   description: string | null,
 ): Promise<LLMExtraction | null> {
   try {
+    const safeTitle = sanitizeForLLM(title);
+    const safeDescription = sanitizeForLLM(description);
+
+    if (!safeTitle && !safeDescription) return null;
+
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-tiktok`, {
       method: 'POST',
       headers: {
@@ -130,7 +146,7 @@ async function extractPlaceNameWithLLM(
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         apikey: SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify({ title: safeTitle, description: safeDescription }),
     });
 
     if (!response.ok) {
