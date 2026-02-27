@@ -2,6 +2,9 @@ import * as GooglePlacesService from './googlePlacesService';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
 import type { PlaceSearchResult } from '../types';
 
+const FETCH_TIMEOUT_MS = 5_000;
+const MAX_HTML_BYTES = 1_048_576; // 1 MB
+
 /**
  * Extract a place from a shared URL.
  * Flow: URL → fetch HTML metadata → LLM extracts place name → Google Places search → return top result
@@ -35,8 +38,10 @@ interface PageMetadata {
 }
 
 async function fetchOEmbed(oEmbedUrl: string): Promise<PageMetadata | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(oEmbedUrl);
+    const response = await fetch(oEmbedUrl, { signal: controller.signal });
     if (!response.ok) return null;
     const data = await response.json();
     const title = data.title || null;
@@ -47,6 +52,8 @@ async function fetchOEmbed(oEmbedUrl: string): Promise<PageMetadata | null> {
   } catch (error) {
     console.warn('[Share] oEmbed fetch failed:', error);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -69,14 +76,24 @@ async function fetchPageMetadata(url: string): Promise<PageMetadata | null> {
   }
 
   // Fallback: scrape HTML metadata
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
         'User-Agent':
           'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
       },
     });
-    const html = await response.text();
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > MAX_HTML_BYTES) {
+      return null;
+    }
+
+    const raw = await response.text();
+    const html = raw.length > MAX_HTML_BYTES ? raw.slice(0, MAX_HTML_BYTES) : raw;
 
     const ogTitle = extractMetaContent(html, 'og:title');
     const ogDesc = extractMetaContent(html, 'og:description');
@@ -91,6 +108,8 @@ async function fetchPageMetadata(url: string): Promise<PageMetadata | null> {
   } catch (error) {
     console.warn('[Share] Failed to fetch URL:', error);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
