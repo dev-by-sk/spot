@@ -12,10 +12,10 @@ export const spotDanger = '#DC2626';
 const lightColors = {
   spotTextPrimary: '#111827',
   spotTextSecondary: '#6B7280',
-  spotBackground: '#F2F0EC',
+  spotBackground: '#FAFAF9',
   spotCardBackground: '#FFFFFF',
-  spotDivider: '#E0DDD7',
-  spotSearchBar: '#EBE9E4',
+  spotDivider: '#E5E7EB',
+  spotSearchBar: '#F3F4F6',
 };
 
 const darkColors = {
