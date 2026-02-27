@@ -16,7 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ListStackParamList } from '../../navigation/types';
+import type { ListStackParamList, MainTabParamList } from '../../navigation/types';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
@@ -36,6 +37,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export function SavedPlacesListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ListStackParamList>>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const {
     savedPlaces,
     isLoadingPlaces,
@@ -187,7 +189,6 @@ export function SavedPlacesListScreen() {
       openSwipeableRef.current.close();
     }
     openSwipeableRef.current = ref;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   const renderItem = useCallback(
@@ -198,7 +199,10 @@ export function SavedPlacesListScreen() {
         <Swipeable
           ref={(ref) => { swipeRef = ref; }}
           renderRightActions={(_progress) => renderRightActions(item, _progress)}
-          onSwipeableWillOpen={() => { swiping = true; }}
+          onSwipeableWillOpen={() => {
+            swiping = true;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
           onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
           onSwipeableClose={() => { swiping = false; }}
           overshootRight={false}
@@ -229,12 +233,23 @@ export function SavedPlacesListScreen() {
   if (savedPlaces.length === 0) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
+        <View style={[styles.emptyIconWrap, { backgroundColor: `${colors.spotEmerald}18` }]}>
+          <Ionicons name="location-outline" size={44} color={colors.spotEmerald} />
+        </View>
         <Text style={[styles.emptyTitle, { color: colors.spotTextPrimary }]}>
-          No saved spots yet
+          No spots saved yet
         </Text>
         <Text style={[styles.emptySubtitle, { color: colors.spotTextSecondary }]}>
-          Search & save your first spot
+          Search for a place or share a link from{'\n'}TikTok or Instagram to get started
         </Text>
+        <TouchableOpacity
+          style={[styles.emptyButton, { backgroundColor: colors.spotEmerald }]}
+          onPress={() => tabNavigation.navigate('Search')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.emptyButtonText}>Find a spot</Text>
+          <Ionicons name="arrow-forward" size={16} color="#fff" />
+        </TouchableOpacity>
       </View>
     );
   }
@@ -331,13 +346,38 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
     gap: 16,
   },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   emptyTitle: {
-    ...SpotTypography.title3,
+    ...SpotTypography.title2,
+    textAlign: 'center',
   },
   emptySubtitle: {
     ...SpotTypography.body,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 999,
+  },
+  emptyButtonText: {
+    ...SpotTypography.headline,
+    color: '#fff',
   },
   headerRow: {
     flexDirection: 'row',
