@@ -39,6 +39,10 @@ export function MainTabNavigator() {
         tabBarStyle: { backgroundColor: colors.spotBackground },
         headerStyle: { backgroundColor: colors.spotBackground },
         headerTintColor: colors.spotTextPrimary,
+        tabBarLabelStyle: {
+          fontFamily: 'PlusJakartaSans_500Medium',
+          fontSize: 11,
+        },
       }}
       screenListeners={{
         tabPress: (e) => {
@@ -55,8 +59,8 @@ export function MainTabNavigator() {
         options={{
           headerShown: false,
           title: 'My spots',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'bookmark' : 'bookmark-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -64,9 +68,9 @@ export function MainTabNavigator() {
         name="Search"
         component={SearchScreen}
         options={{
-          title: 'Search spots',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search" size={size} color={color} />
+          title: 'Search',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'search' : 'search-outline'} size={size} color={color} />
           ),
         }}
       />
