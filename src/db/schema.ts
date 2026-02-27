@@ -25,6 +25,14 @@ export const CREATE_SAVED_PLACES_TABLE = `
   );
 `;
 
+export const MIGRATE_PLACE_CACHE_ADD_WEBSITE = `
+  ALTER TABLE place_cache ADD COLUMN website TEXT;
+`;
+
+export const MIGRATE_PLACE_CACHE_ADD_PHONE = `
+  ALTER TABLE place_cache ADD COLUMN phone_number TEXT;
+`;
+
 export const CREATE_SAVED_PLACES_USER_INDEX = `
   CREATE INDEX IF NOT EXISTS idx_saved_places_user_id ON saved_places(user_id);
 `;

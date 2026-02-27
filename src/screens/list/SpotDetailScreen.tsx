@@ -50,7 +50,17 @@ export function SpotDetailScreen({ route, navigation }: Props) {
     }
   }, [place]);
 
-  const hasInfoSection = true; // price row always shown
+  const openWebsite = useCallback(() => {
+    if (!place.website) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Linking.openURL(place.website);
+  }, [place.website]);
+
+  const callPhone = useCallback(() => {
+    if (!place.phone_number) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Linking.openURL(`tel:${place.phone_number}`);
+  }, [place.phone_number]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
@@ -91,49 +101,93 @@ export function SpotDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Info card */}
-        {hasInfoSection ? (
-          <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
-            {place.rating != null && place.rating > 0 ? (
-              <>
-                <View style={styles.cardRow}>
-                  <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-                    <Ionicons name="star" size={15} color="#F59E0B" />
-                  </View>
-                  <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Rating</Text>
-                  <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
-                    {place.rating.toFixed(1)}
-                  </Text>
-                </View>
-                <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
-              </>
-            ) : null}
-
-            <View style={styles.cardRow}>
-              <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-                <Ionicons name="cash-outline" size={15} color={colors.spotEmerald} />
-              </View>
-              <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Price</Text>
-              <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
-                {priceLabel ?? '—'}
-              </Text>
-            </View>
-            {place.address ? (
-              <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
-            ) : null}
-
-            {place.address ? (
-              <TouchableOpacity style={styles.cardRow} onPress={openInMaps} activeOpacity={0.6}>
+        <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+          {place.rating != null && place.rating > 0 ? (
+            <>
+              <View style={styles.cardRow}>
                 <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-                  <Ionicons name="location-outline" size={15} color={colors.spotEmerald} />
+                  <Ionicons name="star" size={15} color="#F59E0B" />
                 </View>
-                <Text style={[styles.cardRowValue, { color: colors.spotEmerald, flex: 1 }]} numberOfLines={2}>
-                  {place.address}
+                <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Rating</Text>
+                <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                  {place.rating.toFixed(1)}
                 </Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ) : null}
+              </View>
+              {(priceLabel || place.address) ? (
+                <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+              ) : null}
+            </>
+          ) : null}
+
+          {priceLabel ? (
+            <>
+              <View style={styles.cardRow}>
+                <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                  <Ionicons name="cash-outline" size={15} color={colors.spotEmerald} />
+                </View>
+                <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Price</Text>
+                <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                  {priceLabel}
+                </Text>
+              </View>
+              {place.address ? (
+                <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+              ) : null}
+            </>
+          ) : null}
+
+          {place.address ? (
+            <TouchableOpacity style={styles.cardRow} onPress={openInMaps} activeOpacity={0.6}>
+              <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                <Ionicons name="location-outline" size={15} color={colors.spotEmerald} />
+              </View>
+              <Text style={[styles.cardRowValue, { color: colors.spotEmerald, flex: 1 }]} numberOfLines={2}>
+                {place.address}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} />
+            </TouchableOpacity>
+          ) : null}
+
+          <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+
+          <TouchableOpacity
+            style={styles.cardRow}
+            onPress={callPhone}
+            activeOpacity={place.phone_number ? 0.6 : 1}
+            disabled={!place.phone_number}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+              <Ionicons name="call-outline" size={15} color={colors.spotEmerald} />
+            </View>
+            <Text
+              style={[styles.cardRowValue, { flex: 1, color: place.phone_number ? colors.spotEmerald : colors.spotTextSecondary }]}
+              numberOfLines={1}
+            >
+              {place.phone_number ?? '—'}
+            </Text>
+            {place.phone_number ? <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} /> : null}
+          </TouchableOpacity>
+
+          <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+
+          <TouchableOpacity
+            style={styles.cardRow}
+            onPress={openWebsite}
+            activeOpacity={place.website ? 0.6 : 1}
+            disabled={!place.website}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+              <Ionicons name="globe-outline" size={15} color={colors.spotEmerald} />
+            </View>
+            <Text
+              style={[styles.cardRowValue, { flex: 1, color: place.website ? colors.spotEmerald : colors.spotTextSecondary }]}
+              numberOfLines={1}
+            >
+              {place.website ? place.website.replace(/^https?:\/\//, '').replace(/\/$/, '') : '—'}
+            </Text>
+            {place.website ? <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} /> : null}
+          </TouchableOpacity>
+        </View>
 
         {/* Note card */}
         <Text style={[styles.sectionLabel, { color: colors.spotTextSecondary }]}>YOUR NOTE</Text>

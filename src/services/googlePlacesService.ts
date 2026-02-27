@@ -88,6 +88,8 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceCacheDTO> {
     category: data.category ?? '',
     cuisine: data.cuisine ?? '',
     last_refreshed: data.lastRefreshed ?? data.last_refreshed ?? new Date().toISOString(),
+    website: data.website ?? data.websiteUri ?? null,
+    phone_number: data.phoneNumber ?? data.formattedPhoneNumber ?? data.nationalPhoneNumber ?? data.internationalPhoneNumber ?? null,
   };
 }
 

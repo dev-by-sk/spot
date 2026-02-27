@@ -6,6 +6,8 @@ import {
   CREATE_SAVED_PLACES_USER_INDEX,
   CREATE_SAVED_PLACES_GOOGLE_INDEX,
   CREATE_PENDING_DELETIONS_TABLE,
+  MIGRATE_PLACE_CACHE_ADD_WEBSITE,
+  MIGRATE_PLACE_CACHE_ADD_PHONE,
 } from './schema';
 import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from '../types';
 
@@ -21,6 +23,9 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   await dbInstance.execAsync(CREATE_SAVED_PLACES_USER_INDEX);
   await dbInstance.execAsync(CREATE_SAVED_PLACES_GOOGLE_INDEX);
   await dbInstance.execAsync(CREATE_PENDING_DELETIONS_TABLE);
+  // Migrations — ignore errors if column already exists
+  try { await dbInstance.execAsync(MIGRATE_PLACE_CACHE_ADD_WEBSITE); } catch {}
+  try { await dbInstance.execAsync(MIGRATE_PLACE_CACHE_ADD_PHONE); } catch {}
   return dbInstance;
 }
 
@@ -29,8 +34,8 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 export async function upsertLocalPlaceCache(cache: PlaceCacheDTO): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO place_cache (google_place_id, name, address, lat, lng, rating, price_level, category, cuisine, last_refreshed)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO place_cache (google_place_id, name, address, lat, lng, rating, price_level, category, cuisine, last_refreshed, website, phone_number)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(google_place_id) DO UPDATE SET
        name = excluded.name,
        address = excluded.address,
@@ -40,7 +45,9 @@ export async function upsertLocalPlaceCache(cache: PlaceCacheDTO): Promise<void>
        price_level = excluded.price_level,
        category = excluded.category,
        cuisine = excluded.cuisine,
-       last_refreshed = excluded.last_refreshed`,
+       last_refreshed = excluded.last_refreshed,
+       website = excluded.website,
+       phone_number = excluded.phone_number`,
     [
       cache.google_place_id,
       cache.name,
@@ -52,6 +59,8 @@ export async function upsertLocalPlaceCache(cache: PlaceCacheDTO): Promise<void>
       cache.category,
       cache.cuisine,
       cache.last_refreshed,
+      cache.website ?? null,
+      cache.phone_number ?? null,
     ],
   );
 }
@@ -107,7 +116,7 @@ export async function fetchLocalSavedPlaces(userId: string): Promise<SavedPlaceL
   const rows = await db.getAllAsync<SavedPlaceLocal>(
     `SELECT
        sp.id, sp.user_id, sp.google_place_id, sp.note_text, sp.date_visited, sp.saved_at,
-       pc.name, pc.address, pc.lat, pc.lng, pc.rating, pc.price_level, pc.category, pc.cuisine, pc.last_refreshed
+       pc.name, pc.address, pc.lat, pc.lng, pc.rating, pc.price_level, pc.category, pc.cuisine, pc.last_refreshed, pc.website, pc.phone_number
      FROM saved_places sp
      LEFT JOIN place_cache pc ON sp.google_place_id = pc.google_place_id
      WHERE sp.user_id = ?
