@@ -1,4 +1,4 @@
-import { useColorScheme } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 // ── Brand ──
 export const spotEmerald = '#047857';
@@ -12,10 +12,10 @@ export const spotDanger = '#DC2626';
 const lightColors = {
   spotTextPrimary: '#111827',
   spotTextSecondary: '#6B7280',
-  spotBackground: '#FAFAF9',
+  spotBackground: '#F2F0EC',
   spotCardBackground: '#FFFFFF',
-  spotDivider: '#E5E7EB',
-  spotSearchBar: '#F3F4F6',
+  spotDivider: '#E0DDD7',
+  spotSearchBar: '#EBE9E4',
 };
 
 const darkColors = {
@@ -35,8 +35,8 @@ export type SpotColors = typeof lightColors & {
 };
 
 export function useSpotColors(): SpotColors {
-  const scheme = useColorScheme();
-  const adaptive = scheme === 'dark' ? darkColors : lightColors;
+  const { resolvedScheme } = useTheme();
+  const adaptive = resolvedScheme === 'dark' ? darkColors : lightColors;
   return {
     ...adaptive,
     spotEmerald,

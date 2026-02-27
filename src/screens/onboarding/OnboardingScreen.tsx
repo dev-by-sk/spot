@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Animated,
-  useColorScheme,
   StyleSheet as RN,
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
@@ -13,6 +12,7 @@ import { SpotButton } from '../../components/SpotButton';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 import { analytics, AnalyticsEvent } from '../../services/analyticsService';
+import { useTheme } from '../../context/ThemeContext';
 import type { SpotColors } from '../../theme/colors';
 
 // ── Mock data ────────────────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const pagerRef = useRef<PagerView>(null);
   const colors = useSpotColors();
-  const scheme = useColorScheme();
+  const { resolvedScheme } = useTheme();
 
   const dotWidths = useRef(PAGES.map((_, i) => new Animated.Value(i === 0 ? 22 : 8))).current;
 
@@ -209,8 +209,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     }
   };
 
-  const circleOpacityTop    = scheme === 'dark' ? 0.22 : 0.08;
-  const circleOpacityBottom = scheme === 'dark' ? 0.15 : 0.05;
+  const circleOpacityTop    = resolvedScheme === 'dark' ? 0.22 : 0.08;
+  const circleOpacityBottom = resolvedScheme === 'dark' ? 0.15 : 0.05;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
