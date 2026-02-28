@@ -6,6 +6,13 @@ function getBaseURL(): string {
   return `${SUPABASE_URL}/functions/v1/google-places-proxy`;
 }
 
+function isValidCoord(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) && lat >= -90 && lat <= 90 &&
+    Number.isFinite(lng) && lng >= -180 && lng <= 180
+  );
+}
+
 async function authenticatedRequest(url: string): Promise<any> {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {
@@ -38,7 +45,7 @@ export async function autocomplete(
 ): Promise<PlaceSearchResult[]> {
   const encoded = encodeURIComponent(query);
   let url = `${getBaseURL()}/autocomplete?query=${encoded}`;
-  if (lat != null && lng != null) {
+  if (lat != null && lng != null && isValidCoord(lat, lng)) {
     url += `&lat=${lat}&lng=${lng}`;
   }
   return authenticatedRequest(url);
@@ -70,7 +77,7 @@ export async function searchPlace(
 ): Promise<PlaceSearchResult[]> {
   const encoded = encodeURIComponent(query);
   let url = `${getBaseURL()}/search?query=${encoded}`;
-  if (lat != null && lng != null) {
+  if (lat != null && lng != null && isValidCoord(lat, lng)) {
     url += `&lat=${lat}&lng=${lng}`;
   }
   return authenticatedRequest(url);
