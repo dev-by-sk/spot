@@ -5,6 +5,7 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Alert,
   Keyboard,
@@ -40,6 +41,9 @@ export function SearchScreen() {
   const colors = useSpotColors();
   const navigation = useNavigation<any>();
 
+  const searchInputRef = useRef<TextInput>(null);
+  const searchDispatchedFor = useRef('');
+
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [placeToSave, setPlaceToSave] = useState<PlaceCacheDTO | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -72,6 +76,7 @@ export function SearchScreen() {
 
   // Trigger search when debounced query changes
   React.useEffect(() => {
+    searchDispatchedFor.current = debouncedQuery;
     search(debouncedQuery);
   }, [debouncedQuery, search]);
 
@@ -133,15 +138,20 @@ export function SearchScreen() {
     [handleResultPress, colors],
   );
 
-  const showLoading = isSearching || isLoadingDetails;
-  const showNoResults = !isSearching && searchQuery.trim().length > 0 && searchResults.length === 0;
+  const pendingDispatch = debouncedQuery.trim().length > 0 && debouncedQuery !== searchDispatchedFor.current;
+  const showLoading = isSearching || pendingDispatch;
+  const showNoResults = !showLoading && debouncedQuery.trim().length > 0 && searchResults.length === 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]} onTouchStart={Keyboard.dismiss}>
       {/* Search bar */}
-      <View style={[styles.searchBar, { backgroundColor: colors.spotSearchBar }]}>
+      <Pressable
+        style={[styles.searchBar, { backgroundColor: colors.spotSearchBar }]}
+        onPress={() => searchInputRef.current?.focus()}
+      >
         <Ionicons name="search" size={18} color={colors.spotTextSecondary} />
         <TextInput
+          ref={searchInputRef}
           style={[styles.searchInput, { color: colors.spotTextPrimary }]}
           placeholder="Search restaurants, cafes, bars..."
           placeholderTextColor={colors.spotTextSecondary}
@@ -155,7 +165,7 @@ export function SearchScreen() {
             <Ionicons name="close-circle" size={18} color={colors.spotTextSecondary} />
           </TouchableOpacity>
         )}
-      </View>
+      </Pressable>
 
       {/* DEV: Test share extraction */}
       {__DEV__ && (

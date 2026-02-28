@@ -50,7 +50,7 @@ export function SpotDetailScreen({ route, navigation }: Props) {
     }
   }, [place]);
 
-  const hasInfoSection = (place.rating != null && place.rating > 0) || priceLabel || place.address;
+  const hasInfoSection = true; // price row always shown
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
@@ -104,27 +104,21 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                     {place.rating.toFixed(1)}
                   </Text>
                 </View>
-                {(priceLabel || place.address) ? (
-                  <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
-                ) : null}
+                <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
               </>
             ) : null}
 
-            {priceLabel ? (
-              <>
-                <View style={styles.cardRow}>
-                  <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-                    <Ionicons name="cash-outline" size={15} color={colors.spotEmerald} />
-                  </View>
-                  <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Price</Text>
-                  <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
-                    {priceLabel}
-                  </Text>
-                </View>
-                {place.address ? (
-                  <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
-                ) : null}
-              </>
+            <View style={styles.cardRow}>
+              <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                <Ionicons name="cash-outline" size={15} color={colors.spotEmerald} />
+              </View>
+              <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Price</Text>
+              <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                {priceLabel ?? '—'}
+              </Text>
+            </View>
+            {place.address ? (
+              <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
             ) : null}
 
             {place.address ? (

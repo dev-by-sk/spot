@@ -1,6 +1,16 @@
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
+import {
+  AUTOCOMPLETE_RATE_LIMIT,
+  AUTOCOMPLETE_RATE_WINDOW_MS,
+  API_RATE_LIMIT,
+  API_RATE_WINDOW_MS,
+} from '../config/constants';
+import { RateLimiter } from '../utils/rateLimiter';
 import { SpotError } from '../types';
 import type { PlaceSearchResult, PlaceCacheDTO } from '../types';
+
+const autocompleteLimiter = new RateLimiter(AUTOCOMPLETE_RATE_LIMIT, AUTOCOMPLETE_RATE_WINDOW_MS);
+const apiLimiter = new RateLimiter(API_RATE_LIMIT, API_RATE_WINDOW_MS);
 
 function getBaseURL(): string {
   return `${SUPABASE_URL}/functions/v1/google-places-proxy`;
@@ -13,7 +23,11 @@ function isValidCoord(lat: number, lng: number): boolean {
   );
 }
 
-async function authenticatedRequest(url: string): Promise<any> {
+async function authenticatedRequest(url: string, skipGeneralLimit = false): Promise<any> {
+  if (!skipGeneralLimit && !apiLimiter.tryAcquire()) {
+    throw SpotError.rateLimited();
+  }
+
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {
     throw SpotError.networkError('Not authenticated');
@@ -22,12 +36,15 @@ async function authenticatedRequest(url: string): Promise<any> {
   const response = await fetch(url, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Authorization: `Bearer ${sessionData.session.access_token}`,
       apikey: SUPABASE_ANON_KEY,
     },
   });
 
   if (!response.ok) {
+    if (response.status === 429) {
+      throw SpotError.rateLimited();
+    }
     const errorBody = await response.text();
     console.log('[GooglePlaces] Request failed:', response.status, errorBody);
     throw SpotError.networkError('Request failed');
@@ -43,12 +60,16 @@ export async function autocomplete(
   lat?: number,
   lng?: number,
 ): Promise<PlaceSearchResult[]> {
+  if (!autocompleteLimiter.tryAcquire()) {
+    throw SpotError.rateLimited();
+  }
+
   const encoded = encodeURIComponent(query);
   let url = `${getBaseURL()}/autocomplete?query=${encoded}`;
   if (lat != null && lng != null && isValidCoord(lat, lng)) {
     url += `&lat=${lat}&lng=${lng}`;
   }
-  return authenticatedRequest(url);
+  return authenticatedRequest(url, true);
 }
 
 export async function getPlaceDetails(placeId: string): Promise<PlaceCacheDTO> {
