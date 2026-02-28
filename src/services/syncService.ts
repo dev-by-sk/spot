@@ -4,20 +4,30 @@ import {
   upsertLocalSavedPlace,
   fetchLocalSavedPlaces,
   getLocalPlaceCacheForSync,
+  fetchPendingDeletionIds,
+  clearPendingDeletion,
 } from '../db/database';
 import type { SavedPlaceDTO } from '../types';
 
 /**
  * Pull saved places from Supabase and merge into local SQLite.
- * Server wins on conflicts.
+ * Server wins on conflicts, except for locally-pending deletions.
  */
 export async function pullFromRemote(userId: string, isOnline: boolean): Promise<void> {
   if (!isOnline) return;
 
   try {
-    const remotePlaces = await SupabaseService.fetchSavedPlaces();
+    const [remotePlaces, pendingDeletionIds] = await Promise.all([
+      SupabaseService.fetchSavedPlaces(),
+      fetchPendingDeletionIds(),
+    ]);
+
+    const pendingSet = new Set(pendingDeletionIds);
 
     for (const dto of remotePlaces) {
+      // Skip places the user deleted locally but that haven't synced yet
+      if (pendingSet.has(dto.id)) continue;
+
       // Upsert PlaceCache
       if (dto.place_cache) {
         await upsertLocalPlaceCache(dto.place_cache);
@@ -40,12 +50,24 @@ export async function pullFromRemote(userId: string, isOnline: boolean): Promise
 
 /**
  * Push any locally-created places that may not have synced yet,
- * and push note/date_visited updates for existing records.
+ * push note/date_visited updates for existing records,
+ * and push any pending deletions.
  */
 export async function pushToRemote(userId: string, isOnline: boolean): Promise<void> {
   if (!isOnline) return;
 
   try {
+    // Flush pending deletions first so they don't get re-pulled
+    const pendingDeletionIds = await fetchPendingDeletionIds();
+    for (const id of pendingDeletionIds) {
+      try {
+        await SupabaseService.deleteSavedPlace(id);
+        await clearPendingDeletion(id);
+      } catch (error) {
+        console.warn('[Sync] Pending deletion push failed:', error);
+      }
+    }
+
     const localPlaces = await fetchLocalSavedPlaces(userId);
     const remotePlaces = await SupabaseService.fetchSavedPlaces();
     const remoteMap = new Map(remotePlaces.map((p) => [p.id, p]));

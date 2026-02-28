@@ -6,6 +6,8 @@ import {
   upsertLocalPlaceCache,
   insertLocalSavedPlace,
   deleteLocalSavedPlace,
+  markPendingDeletion,
+  clearPendingDeletion,
   updateLocalSavedPlaceNote,
   isDuplicatePlace,
 } from '../db/database';
@@ -212,6 +214,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const deletePlaceById = useCallback(
     async (id: string, placeName: string) => {
       await deleteLocalSavedPlace(id);
+      await markPendingDeletion(id);
 
       analytics.track(AnalyticsEvent.PlaceDeleted, { place_name: placeName });
 
@@ -220,11 +223,12 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         await refreshPlaces(currentUserIdRef.current);
       }
 
-      // Async delete from Supabase
+      // Async delete from Supabase — clear pending deletion only on success
       try {
         await SupabaseService.deleteSavedPlace(id);
+        await clearPendingDeletion(id);
       } catch (error) {
-        console.warn('[Sync] Background delete push failed:', error);
+        console.warn('[Sync] Background delete push failed — will retry on reconnect:', error);
       }
     },
     [refreshPlaces],

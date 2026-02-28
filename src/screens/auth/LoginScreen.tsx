@@ -23,7 +23,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export function LoginScreen() {
-  const { signInWithGoogle, isLoading, errorMessage } = useAuth();
+  const { signInWithGoogle, isSigningIn, errorMessage } = useAuth();
   const colors = useSpotColors();
 
   // Keep a local copy of the error so it remains visible during the fade-out
@@ -85,17 +85,17 @@ export function LoginScreen() {
       <View style={styles.authSection}>
         <TouchableOpacity
           onPress={signInWithGoogle}
-          disabled={isLoading}
+          disabled={isSigningIn}
           activeOpacity={0.7}
           style={[
             styles.googleButton,
             {
               backgroundColor: colors.spotEmerald,
-              opacity: isLoading ? 0.6 : 1,
+              opacity: isSigningIn ? 0.6 : 1,
             },
           ]}
         >
-          {isLoading ? (
+          {isSigningIn ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>

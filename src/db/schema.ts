@@ -32,3 +32,10 @@ export const CREATE_SAVED_PLACES_USER_INDEX = `
 export const CREATE_SAVED_PLACES_GOOGLE_INDEX = `
   CREATE INDEX IF NOT EXISTS idx_saved_places_google_place_id ON saved_places(google_place_id);
 `;
+
+export const CREATE_PENDING_DELETIONS_TABLE = `
+  CREATE TABLE IF NOT EXISTS pending_deletions (
+    id TEXT PRIMARY KEY NOT NULL,
+    deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`;
