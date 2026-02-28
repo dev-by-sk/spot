@@ -6,6 +6,8 @@ import {
   upsertLocalPlaceCache,
   insertLocalSavedPlace,
   deleteLocalSavedPlace,
+  markPendingDeletion,
+  clearPendingDeletion,
   updateLocalSavedPlaceNote,
   isDuplicatePlace,
 } from '../db/database';
@@ -23,6 +25,9 @@ import type {
 import { SpotError } from '../types';
 
 export interface PlacesContextValue {
+  // Network
+  isOnline: boolean;
+
   // Search
   searchQuery: string;
   setSearchQuery: (q: string) => void;
@@ -52,6 +57,7 @@ export interface PlacesContextValue {
 }
 
 export const PlacesContext = createContext<PlacesContextValue>({
+  isOnline: true,
   searchQuery: '',
   setSearchQuery: () => {},
   searchResults: [],
@@ -81,6 +87,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const isOnline = useNetworkStatus();
   const { places: savedPlaces, isLoading: isLoadingPlaces, refresh: refreshPlaces } = useSavedPlaces();
   const currentUserIdRef = useRef<string | null>(null);
+  const isSyncInProgressRef = useRef(false);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
@@ -109,6 +116,10 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       setSearchResults([]);
       return;
     }
+    if (!isOnline) {
+      setSearchResults([]);
+      return;
+    }
     setIsSearching(true);
     try {
       const results = await GooglePlacesService.autocomplete(
@@ -128,9 +139,13 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [isOnline]);
 
   const getPlaceDetails = useCallback(async (placeId: string): Promise<PlaceCacheDTO | null> => {
+    if (!isOnline) {
+      setErrorMessage("You're offline. Place details unavailable.");
+      return null;
+    }
     try {
       const details = await GooglePlacesService.getPlaceDetails(placeId);
       analytics.track(AnalyticsEvent.SearchResultTapped, {
@@ -142,7 +157,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       setErrorMessage(error.message ?? 'Failed to load place details');
       return null;
     }
-  }, []);
+  }, [isOnline]);
 
   const savePlace = useCallback(
     async (dto: PlaceCacheDTO, note: string, userId: string, dateVisited?: string | null) => {
@@ -200,6 +215,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const deletePlaceById = useCallback(
     async (id: string, placeName: string) => {
       await deleteLocalSavedPlace(id);
+      await markPendingDeletion(id);
 
       analytics.track(AnalyticsEvent.PlaceDeleted, { place_name: placeName });
 
@@ -208,11 +224,12 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         await refreshPlaces(currentUserIdRef.current);
       }
 
-      // Async delete from Supabase
+      // Async delete from Supabase — clear pending deletion only on success
       try {
         await SupabaseService.deleteSavedPlace(id);
+        await clearPendingDeletion(id);
       } catch (error) {
-        console.warn('[Sync] Background delete push failed:', error);
+        console.warn('[Sync] Background delete push failed — will retry on reconnect:', error);
       }
     },
     [refreshPlaces],
@@ -241,23 +258,43 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
 
   const syncPlaces = useCallback(
     async (userId: string) => {
+      if (isSyncInProgressRef.current) return;
+      isSyncInProgressRef.current = true;
       currentUserIdRef.current = userId;
       setIsSyncing(true);
       try {
-        await pullFromRemote(userId, isOnline);
         await pushToRemote(userId, isOnline);
+        await pullFromRemote(userId, isOnline);
         await refreshPlaces(userId);
         analytics.track(AnalyticsEvent.SyncCompleted);
       } finally {
         setIsSyncing(false);
+        isSyncInProgressRef.current = false;
       }
     },
     [isOnline, refreshPlaces],
   );
 
+  // Auto-sync when connectivity is restored (silent — no isSyncing UI indicator)
+  const prevIsOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !prevIsOnlineRef.current && currentUserIdRef.current) {
+      if (isSyncInProgressRef.current) return;
+      isSyncInProgressRef.current = true;
+      const userId = currentUserIdRef.current;
+      pushToRemote(userId, true)
+        .then(() => pullFromRemote(userId, true))
+        .then(() => refreshPlaces(userId))
+        .catch((err) => console.warn('[Sync] Reconnect sync failed:', err))
+        .finally(() => { isSyncInProgressRef.current = false; });
+    }
+    prevIsOnlineRef.current = isOnline;
+  }, [isOnline, refreshPlaces]);
+
   return (
     <PlacesContext.Provider
       value={{
+        isOnline,
         searchQuery,
         setSearchQuery,
         searchResults,

@@ -33,8 +33,9 @@ export async function signInWithGoogle(
 }
 
 export async function signOut(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  // signOut clears the local session regardless of network; server-side
+  // token invalidation may fail offline but the caller handles that gracefully.
+  await supabase.auth.signOut();
 }
 
 // ── Account Management ──
@@ -61,17 +62,6 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     .single();
   if (error) throw error;
   return data as UserProfile;
-}
-
-export async function updateProfilePrivacy(isPrivate: boolean): Promise<void> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) return;
-  const userId = sessionData.session.user.id;
-  const { error } = await supabase
-    .from('users')
-    .update({ profile_private: isPrivate })
-    .eq('id', userId);
-  if (error) throw error;
 }
 
 // ── Saved Places ──

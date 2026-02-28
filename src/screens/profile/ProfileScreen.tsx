@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  Switch,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
   StyleSheet,
   ScrollView,
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
-import * as SupabaseService from '../../services/supabaseService';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
-import { spotEmerald } from '../../theme/colors';
 import { useTheme, type ThemePreference } from '../../context/ThemeContext';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../config/constants';
 
@@ -28,33 +27,25 @@ export function ProfileScreen() {
   const { userEmail, signOut, deleteAccount } = useAuth();
   const colors = useSpotColors();
   const { preference, setPreference } = useTheme();
-  const [isPrivateProfile, setIsPrivateProfile] = useState(true);
+  const isOnline = useNetworkStatus();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile = await SupabaseService.getUserProfile();
-        if (profile) {
-          setIsPrivateProfile(profile.profile_private);
-        }
-      } catch (error) {
-        console.warn('[Profile] Failed to load profile:', error);
-      }
-    })();
-  }, []);
-
-  const handlePrivacyToggle = async (value: boolean) => {
-    setIsPrivateProfile(value);
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
     try {
-      await SupabaseService.updateProfilePrivacy(value);
-    } catch {
-      setIsPrivateProfile(!value);
+      await signOut();
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
   const handleDeleteAccount = () => {
+    if (!isOnline) {
+      Alert.alert('No connection', 'You need to be online to delete your account.');
+      return;
+    }
     Alert.alert(
       'Delete Account',
       'Your account will be scheduled for deletion. You have 30 days to sign back in to cancel this request.',
@@ -124,23 +115,6 @@ export function ProfileScreen() {
         </View>
       </View>
 
-      {/* Privacy section */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}>
-          PRIVACY
-        </Text>
-        <View style={[styles.row, { borderColor: colors.spotDivider }]}>
-          <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
-            Private Profile
-          </Text>
-          <Switch
-            value={isPrivateProfile}
-            onValueChange={handlePrivacyToggle}
-            trackColor={{ true: spotEmerald }}
-          />
-        </View>
-      </View>
-
       {/* Account section */}
       <View style={styles.section}>
         <Text style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}>
@@ -184,13 +158,18 @@ export function ProfileScreen() {
       {/* Log out */}
       <View style={styles.section}>
         <TouchableOpacity
-          onPress={signOut}
+          onPress={handleSignOut}
+          disabled={isSigningOut}
           activeOpacity={0.7}
-          style={[styles.logoutButton, { borderColor: colors.spotEmerald }]}
+          style={[styles.logoutButton, { borderColor: colors.spotEmerald, opacity: isSigningOut ? 0.6 : 1 }]}
         >
-          <Text style={[styles.logoutText, { color: colors.spotEmerald }]}>
-            Log out
-          </Text>
+          {isSigningOut ? (
+            <ActivityIndicator size="small" color={colors.spotEmerald} />
+          ) : (
+            <Text style={[styles.logoutText, { color: colors.spotEmerald }]}>
+              Log out
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>

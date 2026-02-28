@@ -5,6 +5,7 @@ import {
   CREATE_SAVED_PLACES_TABLE,
   CREATE_SAVED_PLACES_USER_INDEX,
   CREATE_SAVED_PLACES_GOOGLE_INDEX,
+  CREATE_PENDING_DELETIONS_TABLE,
 } from './schema';
 import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from '../types';
 
@@ -19,6 +20,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   await dbInstance.execAsync(CREATE_SAVED_PLACES_TABLE);
   await dbInstance.execAsync(CREATE_SAVED_PLACES_USER_INDEX);
   await dbInstance.execAsync(CREATE_SAVED_PLACES_GOOGLE_INDEX);
+  await dbInstance.execAsync(CREATE_PENDING_DELETIONS_TABLE);
   return dbInstance;
 }
 
@@ -73,6 +75,22 @@ export async function insertLocalSavedPlace(place: Omit<SavedPlaceDTO, 'place_ca
 export async function deleteLocalSavedPlace(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM saved_places WHERE id = ?', [id]);
+}
+
+export async function markPendingDeletion(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('INSERT OR IGNORE INTO pending_deletions (id) VALUES (?)', [id]);
+}
+
+export async function clearPendingDeletion(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM pending_deletions WHERE id = ?', [id]);
+}
+
+export async function fetchPendingDeletionIds(): Promise<string[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ id: string }>('SELECT id FROM pending_deletions');
+  return rows.map((r) => r.id);
 }
 
 export async function updateLocalSavedPlaceNote(id: string, note: string, dateVisited?: string | null): Promise<void> {

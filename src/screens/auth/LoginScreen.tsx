@@ -23,7 +23,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export function LoginScreen() {
-  const { signInWithGoogle, isLoading, errorMessage } = useAuth();
+  const { signInWithGoogle, isSigningIn, errorMessage } = useAuth();
   const colors = useSpotColors();
 
   // Keep a local copy of the error so it remains visible during the fade-out
@@ -85,30 +85,28 @@ export function LoginScreen() {
       <View style={styles.authSection}>
         <TouchableOpacity
           onPress={signInWithGoogle}
-          disabled={isLoading}
+          disabled={isSigningIn}
           activeOpacity={0.7}
           style={[
             styles.googleButton,
             {
               backgroundColor: colors.spotEmerald,
-              opacity: isLoading ? 0.6 : 1,
+              opacity: isSigningIn ? 0.6 : 1,
             },
           ]}
         >
-          <Ionicons name="logo-google" size={20} color="#FFFFFF" />
-          <Text style={[styles.googleText, { color: '#FFFFFF' }]}>
-            Sign in with Google
-          </Text>
+          {isSigningIn ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="logo-google" size={20} color="#FFFFFF" />
+              <Text style={[styles.googleText, { color: '#FFFFFF' }]}>
+                Sign in with Google
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
-
-      {/* Loading indicator */}
-      {isLoading && (
-        <ActivityIndicator
-          color={colors.spotEmerald}
-          style={styles.loader}
-        />
-      )}
 
       {/* Terms */}
       <View style={styles.termsRow}>
@@ -168,9 +166,6 @@ const styles = StyleSheet.create({
   },
   googleText: {
     ...SpotTypography.headline,
-  },
-  loader: {
-    marginTop: 16,
   },
   termsRow: {
     flexDirection: 'row',

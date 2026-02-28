@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useShareIntentContext } from 'expo-share-intent';
 import { extractPlaceFromURL } from '../services/shareExtractionService';
 import * as GooglePlacesService from '../services/googlePlacesService';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import type { PlaceCacheDTO } from '../types';
 
 interface ShareContextState {
@@ -31,6 +32,7 @@ function extractURLFromText(text: string): string | null {
 
 export function ShareProvider({ children }: { children: React.ReactNode }) {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
+  const isOnline = useNetworkStatus();
 
   const [pendingPlace, setPendingPlace] = useState<PlaceCacheDTO | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -44,6 +46,10 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
   }, [resetShareIntent]);
 
   const testExtract = useCallback(async (url: string) => {
+    if (!isOnline) {
+      setExtractionError("You're offline. Share extraction unavailable.");
+      return;
+    }
     setIsExtracting(true);
     setExtractionError(null);
     setPendingPlace(null);
@@ -64,7 +70,7 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsExtracting(false);
     }
-  }, []);
+  }, [isOnline]);
 
   useEffect(() => {
     if (!hasShareIntent) return;
@@ -73,6 +79,11 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
 
     if (!url) {
       setExtractionError('No URL found in the shared content.');
+      return;
+    }
+
+    if (!isOnline) {
+      setExtractionError("You're offline. Share extraction unavailable.");
       return;
     }
 
@@ -110,7 +121,7 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [hasShareIntent, shareIntent]);
+  }, [hasShareIntent, shareIntent, isOnline]);
 
   return (
     <ShareContext.Provider value={{ pendingPlace, isExtracting, extractionError, clearShare, testExtract }}>

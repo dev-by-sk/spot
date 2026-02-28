@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { SpotButton } from '../../components/SpotButton';
 import { useSpotColors, spotEmerald, spotEmeraldLight } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
@@ -23,6 +22,7 @@ interface SaveConfirmationModalProps {
   placeDTO: PlaceCacheDTO | null;
   onSave: (note: string, dateVisited: string | null) => void;
   onCancel: () => void;
+  loading?: boolean;
 }
 
 export function SaveConfirmationModal({
@@ -30,6 +30,7 @@ export function SaveConfirmationModal({
   placeDTO,
   onSave,
   onCancel,
+  loading = false,
 }: SaveConfirmationModalProps) {
   const [noteText, setNoteText] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -40,7 +41,6 @@ export function SaveConfirmationModal({
   if (!placeDTO) return null;
 
   const handleSave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onSave(noteText, dateVisited ? dateVisited.toISOString() : null);
     setNoteText('');
     setDateVisited(null);
@@ -176,8 +176,8 @@ export function SaveConfirmationModal({
 
         {/* Buttons */}
         <View style={styles.buttonRow}>
-          <SpotButton title="Cancel" variant="outline" onPress={handleCancel} style={{ flex: 1 }} />
-          <SpotButton title="Save" variant="primary" onPress={handleSave} style={{ flex: 1 }} />
+          <SpotButton title="Cancel" variant="outline" onPress={handleCancel} disabled={loading} style={{ flex: 1 }} />
+          <SpotButton title="Save" variant="primary" onPress={handleSave} loading={loading} style={{ flex: 1 }} />
         </View>
       </View>
     </Modal>

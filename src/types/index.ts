@@ -10,7 +10,6 @@ export interface UserProfile {
   id: string;
   email: string | null;
   auth_provider: string;
-  profile_private: boolean;
   created_at: string;
   deleted_at: string | null;
 }

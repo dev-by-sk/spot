@@ -8,7 +8,9 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
+  ActivityIndicator,
   Animated,
+  Easing,
   StyleSheet,
   LayoutAnimation,
   UIManager,
@@ -49,7 +51,6 @@ export function SavedPlacesListScreen() {
     selectedFilter,
     setSelectedFilter,
     syncPlaces,
-    isSyncing,
   } = usePlaces();
   const { currentUserId } = useAuth();
   const colors = useSpotColors();
@@ -60,7 +61,31 @@ export function SavedPlacesListScreen() {
   const listSearchInputRef = useRef<TextInput>(null);
 
   const [editingPlace, setEditingPlace] = useState<SavedPlaceLocal | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+  // Track which IDs are brand-new so we can animate them in
+  const prevIdsRef = useRef<Set<string> | null>(null);
+  const newIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set(savedPlaces.map((p) => p.id));
+    if (prevIdsRef.current !== null) {
+      const added: string[] = [];
+      for (const id of currentIds) {
+        if (!prevIdsRef.current.has(id)) {
+          newIdsRef.current.add(id);
+          added.push(id);
+        }
+      }
+      if (added.length > 0) {
+        setTimeout(() => added.forEach((id) => newIdsRef.current.delete(id)), 800);
+      }
+    }
+    prevIdsRef.current = currentIds;
+  }, [savedPlaces]);
+
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -130,8 +155,26 @@ export function SavedPlacesListScreen() {
 
   const handleRefresh = useCallback(async () => {
     if (!currentUserId) return;
-    await syncPlaces(currentUserId);
+    setIsRefreshing(true);
+    try {
+      await syncPlaces(currentUserId);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [currentUserId, syncPlaces]);
+
+  const handleExitAnimationComplete = useCallback(
+    (id: string, name: string) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      deletePlaceById(id, name);
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    },
+    [deletePlaceById],
+  );
 
   const handleDelete = useCallback(
     (place: SavedPlaceLocal) => {
@@ -145,14 +188,11 @@ export function SavedPlacesListScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            deletePlaceById(place.id, place.name ?? '');
-          },
+          onPress: () => setDeletingIds((prev) => new Set([...prev, place.id])),
         },
       ]);
     },
-    [deletePlaceById],
+    [],
   );
 
   const handleEditNote = useCallback((place: SavedPlaceLocal) => {
@@ -210,38 +250,49 @@ export function SavedPlacesListScreen() {
     ({ item }: { item: SavedPlaceLocal }) => {
       let swipeRef: Swipeable | null = null;
       let swiping = false;
+      const isNew = newIdsRef.current.has(item.id);
+      const shouldExit = deletingIds.has(item.id);
       return (
-        <Swipeable
-          ref={(ref) => { swipeRef = ref; }}
-          renderRightActions={(_progress) => renderRightActions(item, _progress)}
-          onSwipeableWillOpen={() => {
-            swiping = true;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }}
-          onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
-          onSwipeableClose={() => { swiping = false; }}
-          overshootRight={false}
+        <AnimatedListItem
+          id={item.id}
+          isNew={isNew}
+          shouldExit={shouldExit}
+          onExitAnimationComplete={() => handleExitAnimationComplete(item.id, item.name ?? '')}
         >
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              if (!swiping) {
-                navigation.navigate('PlaceDetail', { place: item });
-              }
+          <Swipeable
+            ref={(ref) => { swipeRef = ref; }}
+            renderRightActions={(_progress) => renderRightActions(item, _progress)}
+            onSwipeableWillOpen={() => {
+              swiping = true;
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
-            style={styles.cardContainer}
+            onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
+            onSwipeableClose={() => { swiping = false; }}
+            overshootRight={false}
           >
-            <PlaceCard place={item} />
-          </TouchableOpacity>
-        </Swipeable>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                if (!swiping) {
+                  navigation.navigate('PlaceDetail', { place: item });
+                }
+              }}
+              style={styles.cardContainer}
+            >
+              <PlaceCard place={item} />
+            </TouchableOpacity>
+          </Swipeable>
+        </AnimatedListItem>
       );
     },
-    [renderRightActions, handleSwipeOpen, navigation],
+    [deletingIds, handleExitAnimationComplete, renderRightActions, handleSwipeOpen, navigation],
   );
 
   if (isLoadingPlaces && savedPlaces.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]} />
+      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
+        <ActivityIndicator color={colors.spotEmerald} />
+      </View>
     );
   }
 
@@ -355,7 +406,7 @@ export function SavedPlacesListScreen() {
         }
         refreshControl={
           <RefreshControl
-            refreshing={isSyncing}
+            refreshing={isRefreshing}
             onRefresh={handleRefresh}
             tintColor={colors.spotEmerald}
           />
@@ -388,6 +439,58 @@ export function SavedPlacesListScreen() {
         onDone={() => setShowFilterSheet(false)}
       />
     </View>
+  );
+}
+
+interface AnimatedListItemProps {
+  id: string;
+  isNew: boolean;
+  shouldExit: boolean;
+  onExitAnimationComplete: () => void;
+  children: React.ReactNode;
+}
+
+function AnimatedListItem({ isNew, shouldExit, onExitAnimationComplete, children }: AnimatedListItemProps) {
+  const opacity = useRef(new Animated.Value(isNew ? 0 : 1)).current;
+  const translateY = useRef(new Animated.Value(isNew ? -14 : 0)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isNew) {
+      Animated.parallel([
+        Animated.spring(opacity, { toValue: 1, useNativeDriver: true, tension: 90, friction: 13 }),
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 90, friction: 13 }),
+      ]).start();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (shouldExit) {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 240,
+          easing: Easing.in(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateX, {
+          toValue: 60,
+          duration: 240,
+          easing: Easing.in(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) onExitAnimationComplete();
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldExit]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }, { translateX }] }}>
+      {children}
+    </Animated.View>
   );
 }
 

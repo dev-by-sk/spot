@@ -5,6 +5,7 @@ import { digestStringAsync, CryptoDigestAlgorithm, CryptoEncoding } from 'expo-c
 import * as SupabaseService from '../services/supabaseService';
 import { supabase } from '../config/supabase';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { ERROR_AUTO_DISMISS_MS } from '../config/constants';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -12,6 +13,7 @@ WebBrowser.maybeCompleteAuthSession();
 export interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
+  isSigningIn: boolean;
   errorMessage: string | null;
   currentUserId: string | null;
   userEmail: string | null;
@@ -24,6 +26,7 @@ export interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   isLoading: true,
+  isSigningIn: false,
   errorMessage: null,
   currentUserId: null,
   userEmail: null,
@@ -34,8 +37,10 @@ export const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const isOnline = useNetworkStatus();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -121,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    setIsLoading(true);
+    setIsSigningIn(true);
     try {
       const redirectUri = AuthSession.makeRedirectUri();
       console.log('[Auth] Google OAuth redirect URI:', redirectUri);
@@ -136,7 +141,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error || !data.url) {
         console.error('[Auth] signInWithOAuth failed:', error, 'url:', data?.url);
         setErrorWithAutoDismiss('Failed to start Google sign in');
-        setIsLoading(false);
         return;
       }
 
@@ -144,8 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[Auth] WebBrowser result:', result.type, result.type === 'success' ? result.url : '');
 
       if (result.type !== 'success') {
-        // User cancelled
-        setIsLoading(false);
+        // User cancelled — just stop, stay on login screen
         return;
       }
 
@@ -156,7 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const authCode = codeMatch?.[1];
       if (!authCode) {
         setErrorWithAutoDismiss('Sign in failed. Please try again.');
-        setIsLoading(false);
         return;
       }
 
@@ -166,7 +168,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (sessionError || !sessionData.user) {
         console.error('[Auth] exchangeCodeForSession failed:', sessionError);
         setErrorWithAutoDismiss('Sign in failed. Please try again.');
-        setIsLoading(false);
         return;
       }
 
@@ -180,26 +181,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('[Auth] signInWithGoogle threw:', error);
       setErrorWithAutoDismiss('Sign in failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSigningIn(false);
     }
   }, [setErrorWithAutoDismiss]);
 
   const handleSignOut = useCallback(async () => {
-    try {
-      await SupabaseService.signOut();
-
-      analytics.track(AnalyticsEvent.SignedOut);
-      analytics.reset();
-
-      setIsAuthenticated(false);
-      setCurrentUserId(null);
-      setUserEmail(null);
-    } catch (error: any) {
-      setErrorWithAutoDismiss(error.message ?? 'Sign out failed');
+    if (isOnline) {
+      try {
+        await SupabaseService.signOut();
+      } catch {
+        // Network error: fall back to local-only sign out
+        await supabase.auth.signOut({ scope: 'local' });
+      }
+    } else {
+      // Offline: clear local session only, no network request
+      await supabase.auth.signOut({ scope: 'local' });
     }
-  }, [setErrorWithAutoDismiss]);
+    analytics.track(AnalyticsEvent.SignedOut);
+    analytics.reset();
+    setIsAuthenticated(false);
+    setCurrentUserId(null);
+    setUserEmail(null);
+  }, [isOnline]);
 
   const deleteAccount = useCallback(async () => {
+    if (!isOnline) {
+      setErrorWithAutoDismiss('You need to be online to delete your account.');
+      return;
+    }
     setIsLoading(true);
     try {
       await SupabaseService.softDeleteAccount();
@@ -215,13 +224,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [setErrorWithAutoDismiss]);
+  }, [isOnline, setErrorWithAutoDismiss]);
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
         isLoading,
+        isSigningIn,
         errorMessage,
         currentUserId,
         userEmail,

@@ -4,20 +4,30 @@ import {
   upsertLocalSavedPlace,
   fetchLocalSavedPlaces,
   getLocalPlaceCacheForSync,
+  fetchPendingDeletionIds,
+  clearPendingDeletion,
 } from '../db/database';
 import type { SavedPlaceDTO } from '../types';
 
 /**
  * Pull saved places from Supabase and merge into local SQLite.
- * Server wins on conflicts.
+ * Server wins on conflicts, except for locally-pending deletions.
  */
 export async function pullFromRemote(userId: string, isOnline: boolean): Promise<void> {
   if (!isOnline) return;
 
   try {
-    const remotePlaces = await SupabaseService.fetchSavedPlaces();
+    const [remotePlaces, pendingDeletionIds] = await Promise.all([
+      SupabaseService.fetchSavedPlaces(),
+      fetchPendingDeletionIds(),
+    ]);
+
+    const pendingSet = new Set(pendingDeletionIds);
 
     for (const dto of remotePlaces) {
+      // Skip places the user deleted locally but that haven't synced yet
+      if (pendingSet.has(dto.id)) continue;
+
       // Upsert PlaceCache
       if (dto.place_cache) {
         await upsertLocalPlaceCache(dto.place_cache);
@@ -39,18 +49,33 @@ export async function pullFromRemote(userId: string, isOnline: boolean): Promise
 }
 
 /**
- * Push any locally-created places that may not have synced yet.
+ * Push any locally-created places that may not have synced yet,
+ * push note/date_visited updates for existing records,
+ * and push any pending deletions.
  */
 export async function pushToRemote(userId: string, isOnline: boolean): Promise<void> {
   if (!isOnline) return;
 
   try {
+    // Flush pending deletions first so they don't get re-pulled
+    const pendingDeletionIds = await fetchPendingDeletionIds();
+    for (const id of pendingDeletionIds) {
+      try {
+        await SupabaseService.deleteSavedPlace(id);
+        await clearPendingDeletion(id);
+      } catch (error) {
+        console.warn('[Sync] Pending deletion push failed:', error);
+      }
+    }
+
     const localPlaces = await fetchLocalSavedPlaces(userId);
     const remotePlaces = await SupabaseService.fetchSavedPlaces();
-    const remoteIds = new Set(remotePlaces.map((p) => p.id));
+    const remoteMap = new Map(remotePlaces.map((p) => [p.id, p]));
 
     for (const local of localPlaces) {
-      if (!remoteIds.has(local.id)) {
+      const remote = remoteMap.get(local.id);
+
+      if (!remote) {
         // This place exists locally but not remotely — push it
         if (local.google_place_id) {
           const cache = await getLocalPlaceCacheForSync(local.google_place_id);
@@ -76,6 +101,17 @@ export async function pushToRemote(userId: string, isOnline: boolean): Promise<v
           await SupabaseService.uploadSavedPlace(dto);
         } catch (error) {
           console.warn('[Sync] Background place push failed:', error);
+        }
+      } else {
+        // Place exists on both sides — push local note/date if they differ
+        const noteChanged = local.note_text !== remote.note_text;
+        const dateChanged = (local.date_visited ?? null) !== (remote.date_visited ?? null);
+        if (noteChanged || dateChanged) {
+          try {
+            await SupabaseService.updateSavedPlaceNote(local.id, local.note_text ?? '', local.date_visited);
+          } catch (error) {
+            console.warn('[Sync] Background note push failed:', error);
+          }
         }
       }
     }
