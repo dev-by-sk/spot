@@ -23,8 +23,8 @@ function isValidCoord(lat: number, lng: number): boolean {
   );
 }
 
-async function authenticatedRequest(url: string): Promise<any> {
-  if (!apiLimiter.tryAcquire()) {
+async function authenticatedRequest(url: string, skipGeneralLimit = false): Promise<any> {
+  if (!skipGeneralLimit && !apiLimiter.tryAcquire()) {
     throw SpotError.rateLimited();
   }
 
@@ -42,6 +42,9 @@ async function authenticatedRequest(url: string): Promise<any> {
   });
 
   if (!response.ok) {
+    if (response.status === 429) {
+      throw SpotError.rateLimited();
+    }
     const errorBody = await response.text();
     console.log('[GooglePlaces] Request failed:', response.status, errorBody);
     throw SpotError.networkError('Request failed');
@@ -66,7 +69,7 @@ export async function autocomplete(
   if (lat != null && lng != null && isValidCoord(lat, lng)) {
     url += `&lat=${lat}&lng=${lng}`;
   }
-  return authenticatedRequest(url);
+  return authenticatedRequest(url, true);
 }
 
 export async function getPlaceDetails(placeId: string): Promise<PlaceCacheDTO> {

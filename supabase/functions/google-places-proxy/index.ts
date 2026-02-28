@@ -17,6 +17,16 @@ const MAX_REQUESTS = 30;
 const WINDOW_MS = 60_000;
 const userRequests = new Map<string, number[]>();
 
+// Periodic cleanup — remove entries with no recent requests to prevent unbounded growth
+setInterval(() => {
+  const windowStart = Date.now() - WINDOW_MS;
+  for (const [userId, timestamps] of userRequests) {
+    if (timestamps.every((t) => t <= windowStart)) {
+      userRequests.delete(userId);
+    }
+  }
+}, WINDOW_MS);
+
 function isRateLimited(userId: string): boolean {
   const now = Date.now();
   const windowStart = now - WINDOW_MS;
@@ -186,8 +196,9 @@ serve(async (req) => {
         );
     }
   } catch (error) {
+    console.error("[google-places-proxy] Error:", error);
     return Response.json(
-      { error: error.message },
+      { error: "Internal error" },
       { status: 500, headers: corsHeaders },
     );
   }
