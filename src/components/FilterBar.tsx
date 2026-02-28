@@ -45,6 +45,7 @@ export function FilterBar({ selectedFilter, onFilterChange }: FilterBarProps) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.container}
       >
         {renderChip('All', selectedFilter === null, () => onFilterChange(null))}
