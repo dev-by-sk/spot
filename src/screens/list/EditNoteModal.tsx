@@ -15,6 +15,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSpotColors } from '../../theme/colors';
+import { useTheme } from '../../context/ThemeContext';
 import { SpotTypography } from '../../theme/typography';
 
 interface EditNoteModalProps {
@@ -39,6 +40,7 @@ export function EditNoteModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const colors = useSpotColors();
+  const { resolvedScheme } = useTheme();
 
   useEffect(() => {
     if (visible) {
@@ -181,7 +183,8 @@ export function EditNoteModal({
                 onChange={(_event, selectedDate) => {
                   if (selectedDate) setDateVisited(selectedDate);
                 }}
-                accentColor={colors.spotEmerald}
+                accentColor={resolvedScheme === 'dark' ? colors.spotEmeraldLight : colors.spotEmerald}
+                themeVariant={resolvedScheme}
               />
             )}
           </View>

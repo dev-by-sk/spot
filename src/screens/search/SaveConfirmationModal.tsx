@@ -12,8 +12,9 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { SpotButton } from '../../components/SpotButton';
-import { useSpotColors, spotEmerald } from '../../theme/colors';
+import { useSpotColors, spotEmerald, spotEmeraldLight } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
+import { useTheme } from '../../context/ThemeContext';
 import type { PlaceCacheDTO } from '../../types';
 
 interface SaveConfirmationModalProps {
@@ -35,6 +36,7 @@ export function SaveConfirmationModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateVisited, setDateVisited] = useState<Date | null>(null);
   const colors = useSpotColors();
+  const { resolvedScheme } = useTheme();
 
   if (!placeDTO) return null;
 
@@ -165,7 +167,8 @@ export function SaveConfirmationModal({
                 onChange={(_, selectedDate) => {
                   if (selectedDate) setDateVisited(selectedDate);
                 }}
-                accentColor={spotEmerald}
+                accentColor={resolvedScheme === 'dark' ? spotEmeraldLight : spotEmerald}
+                themeVariant={resolvedScheme}
               />
             )}
           </View>

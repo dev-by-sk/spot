@@ -11,6 +11,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
 };
 
+// In-memory per-user rate limiting (sliding window)
+const MAX_REQUESTS = 10;
+const WINDOW_MS = 60_000;
+const userRequests = new Map<string, number[]>();
+
+// Periodic cleanup — remove entries with no recent requests to prevent unbounded growth
+setInterval(() => {
+  const windowStart = Date.now() - WINDOW_MS;
+  for (const [userId, timestamps] of userRequests) {
+    if (timestamps.every((t) => t <= windowStart)) {
+      userRequests.delete(userId);
+    }
+  }
+}, WINDOW_MS);
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const windowStart = now - WINDOW_MS;
+  const timestamps = (userRequests.get(userId) ?? []).filter(
+    (t) => t > windowStart,
+  );
+
+  if (timestamps.length >= MAX_REQUESTS) {
+    userRequests.set(userId, timestamps);
+    return true;
+  }
+
+  timestamps.push(now);
+  userRequests.set(userId, timestamps);
+  return false;
+}
+
 const SYSTEM_PROMPT = `You extract restaurant/cafe/bar names from social media post metadata.
 
 Given the title and description from a TikTok, Instagram, or YouTube post, extract the name of the restaurant, cafe, bar, or food place mentioned.
@@ -50,6 +82,14 @@ serve(async (req) => {
       return Response.json(
         { error: "Invalid or expired token" },
         { status: 401, headers: corsHeaders },
+      );
+    }
+
+    // Per-user rate limiting
+    if (isRateLimited(user.id)) {
+      return Response.json(
+        { error: "Too many requests — please slow down and try again" },
+        { status: 429, headers: corsHeaders },
       );
     }
 

@@ -16,11 +16,19 @@ import * as SupabaseService from '../../services/supabaseService';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 import { spotEmerald } from '../../theme/colors';
+import { useTheme, type ThemePreference } from '../../context/ThemeContext';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../config/constants';
+
+const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] = [
+  { value: 'light', icon: 'sunny-outline',  label: 'Light' },
+  { value: 'system', icon: 'phone-portrait-outline', label: 'Auto'  },
+  { value: 'dark',  icon: 'moon-outline',   label: 'Dark'  },
+];
 
 export function ProfileScreen() {
   const { userEmail, signOut, deleteAccount } = useAuth();
   const colors = useSpotColors();
+  const { preference, setPreference } = useTheme();
   const [isPrivateProfile, setIsPrivateProfile] = useState(true);
   const [isTogglingPrivacy, setIsTogglingPrivacy] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -94,6 +102,41 @@ export function ProfileScreen() {
           >
             {userEmail ?? 'User'}
           </Text>
+        </View>
+      </View>
+
+      {/* Appearance section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}>
+          APPEARANCE
+        </Text>
+        <View style={[styles.segmentedRow, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+          {THEME_OPTIONS.map((opt) => {
+            const active = preference === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => setPreference(opt.value)}
+                activeOpacity={0.7}
+                style={[
+                  styles.segment,
+                  active && { backgroundColor: colors.spotEmerald },
+                ]}
+              >
+                <Ionicons
+                  name={opt.icon as any}
+                  size={14}
+                  color={active ? '#FFFFFF' : colors.spotTextSecondary}
+                />
+                <Text style={[
+                  styles.segmentLabel,
+                  { color: active ? '#FFFFFF' : colors.spotTextSecondary },
+                ]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -215,6 +258,26 @@ const styles = StyleSheet.create({
   email: {
     ...SpotTypography.headline,
     flex: 1,
+  },
+  segmentedRow: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 3,
+    gap: 3,
+  },
+  segment: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    borderRadius: 9,
+  },
+  segmentLabel: {
+    ...SpotTypography.footnote,
+    fontWeight: '500',
   },
   row: {
     flexDirection: 'row',

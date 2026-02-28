@@ -43,6 +43,9 @@ export function SearchScreen() {
   const colors = useSpotColors();
   const navigation = useNavigation<any>();
 
+  const searchInputRef = useRef<TextInput>(null);
+  const searchDispatchedFor = useRef('');
+
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [placeToSave, setPlaceToSave] = useState<PlaceCacheDTO | null>(null);
@@ -84,6 +87,7 @@ export function SearchScreen() {
 
   // Trigger search when debounced query changes
   React.useEffect(() => {
+    searchDispatchedFor.current = debouncedQuery;
     search(debouncedQuery);
   }, [debouncedQuery, search]);
 
@@ -156,18 +160,23 @@ export function SearchScreen() {
     [loadingItemId, handleResultPress, colors],
   );
 
-  const showLoading = isSearching;
-  const showNoResults = !isSearching && searchQuery.trim().length > 0 && searchResults.length === 0 && isOnline;
+  const pendingDispatch = debouncedQuery.trim().length > 0 && debouncedQuery !== searchDispatchedFor.current;
+  const showLoading = isSearching || pendingDispatch;
+  const showNoResults = !showLoading && debouncedQuery.trim().length > 0 && searchResults.length === 0 && isOnline;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
       {/* Search bar */}
-      <View style={[
-        styles.searchBar,
-        { backgroundColor: colors.spotSearchBar, opacity: isOnline ? 1 : 0.45 },
-      ]}>
+      <Pressable
+        style={[
+          styles.searchBar,
+          { backgroundColor: colors.spotSearchBar, opacity: isOnline ? 1 : 0.45 },
+        ]}
+        onPress={() => searchInputRef.current?.focus()}
+      >
         <Ionicons name="search" size={18} color={colors.spotTextSecondary} />
         <TextInput
+          ref={searchInputRef}
           style={[styles.searchInput, { color: colors.spotTextPrimary }]}
           placeholder="Search restaurants, cafes, bars..."
           placeholderTextColor={colors.spotTextSecondary}
@@ -182,7 +191,7 @@ export function SearchScreen() {
             <Ionicons name="close-circle" size={18} color={colors.spotTextSecondary} />
           </TouchableOpacity>
         )}
-      </View>
+      </Pressable>
 
       {/* DEV: Test share extraction */}
       {__DEV__ && (
