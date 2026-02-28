@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   View,
   Text,
+  TextInput,
+  Pressable,
   FlatList,
   RefreshControl,
   Alert,
@@ -55,12 +57,14 @@ export function SavedPlacesListScreen() {
   const isFocused = useIsFocused();
 
   const openSwipeableRef = useRef<Swipeable | null>(null);
+  const listSearchInputRef = useRef<TextInput>(null);
 
   const [editingPlace, setEditingPlace] = useState<SavedPlaceLocal | null>(null);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [listSearchQuery, setListSearchQuery] = useState('');
 
   useEffect(() => {
     if (currentUserId && isFocused) {
@@ -89,6 +93,17 @@ export function SavedPlacesListScreen() {
   const filteredPlaces = useMemo(() => {
     let result = savedPlaces;
 
+    // Text search across name, note, address, cuisine
+    const q = listSearchQuery.trim().toLowerCase();
+    if (q.length > 0) {
+      result = result.filter((p) =>
+        (p.name ?? '').toLowerCase().includes(q) ||
+        (p.note_text ?? '').toLowerCase().includes(q) ||
+        (p.address ?? '').toLowerCase().includes(q) ||
+        (p.cuisine ?? '').toLowerCase().includes(q),
+      );
+    }
+
     // Category filter
     if (selectedFilter) {
       result = result.filter((p) => p.category === selectedFilter);
@@ -109,7 +124,7 @@ export function SavedPlacesListScreen() {
     }
 
     return result;
-  }, [savedPlaces, selectedFilter, selectedDistance, selectedCuisine, userLocation]);
+  }, [savedPlaces, listSearchQuery, selectedFilter, selectedDistance, selectedCuisine, userLocation]);
 
   const hasAdvancedFilters = selectedDistance !== null || selectedCuisine !== null;
 
@@ -266,6 +281,33 @@ export function SavedPlacesListScreen() {
         </Text>
       </View>
 
+      {/* Search bar */}
+      <Pressable
+        style={[styles.listSearchBar, { backgroundColor: colors.spotSearchBar }]}
+        onPress={() => listSearchInputRef.current?.focus()}
+      >
+        <Ionicons name="search" size={16} color={colors.spotTextSecondary} />
+        <TextInput
+          ref={listSearchInputRef}
+          style={[styles.listSearchInput, { color: colors.spotTextPrimary }]}
+          placeholder="Search your spots..."
+          placeholderTextColor={colors.spotTextSecondary}
+          value={listSearchQuery}
+          onChangeText={(text) => {
+            setListSearchQuery(text);
+            openSwipeableRef.current?.close();
+          }}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+        />
+        {listSearchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setListSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={16} color={colors.spotTextSecondary} />
+          </TouchableOpacity>
+        )}
+      </Pressable>
+
       {/* Filter row */}
       <View style={styles.filterRow}>
         <FilterBar selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
@@ -285,7 +327,32 @@ export function SavedPlacesListScreen() {
         data={filteredPlaces}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[{ flexGrow: 1 }, filteredPlaces.length > 0 && styles.listContent]}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          listSearchQuery.trim().length > 0 ? (
+            <View style={styles.searchEmptyContainer}>
+              <Ionicons name="search-outline" size={36} color={colors.spotTextSecondary} style={{ opacity: 0.4 }} />
+              <Text style={[styles.searchEmptyTitle, { color: colors.spotTextPrimary }]}>
+                No spots found
+              </Text>
+              <Text style={[styles.searchEmptySubtitle, { color: colors.spotTextSecondary }]}>
+                No results for "{listSearchQuery}"
+              </Text>
+            </View>
+          ) : (selectedFilter || hasAdvancedFilters) ? (
+            <View style={styles.searchEmptyContainer}>
+              <Ionicons name="filter-outline" size={36} color={colors.spotTextSecondary} style={{ opacity: 0.4 }} />
+              <Text style={[styles.searchEmptyTitle, { color: colors.spotTextPrimary }]}>
+                No spots matched
+              </Text>
+              <Text style={[styles.searchEmptySubtitle, { color: colors.spotTextSecondary }]}>
+                Try adjusting or clearing your filters
+              </Text>
+            </View>
+          ) : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={isSyncing}
@@ -393,11 +460,38 @@ const styles = StyleSheet.create({
   screenTitleCount: {
     ...SpotTypography.title2,
   },
+  listSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    gap: 8,
+  },
+  listSearchInput: {
+    flex: 1,
+    ...SpotTypography.body,
+    padding: 0,
+  },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 12,
     paddingBottom: 12,
+  },
+  searchEmptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  searchEmptyTitle: {
+    ...SpotTypography.headline,
+  },
+  searchEmptySubtitle: {
+    ...SpotTypography.body,
   },
   filterIconButton: {
     paddingHorizontal: 16,
