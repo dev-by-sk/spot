@@ -1,5 +1,5 @@
 import * as GooglePlacesService from './googlePlacesService';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
+import { supabase } from '../config/supabase';
 import type { PlaceSearchResult } from '../types';
 
 const FETCH_TIMEOUT_MS = 5_000;
@@ -139,22 +139,16 @@ async function extractPlaceNameWithLLM(
 
     if (!safeTitle && !safeDescription) return null;
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-tiktok`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        apikey: SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ title: safeTitle, description: safeDescription }),
+    const { data, error } = await supabase.functions.invoke('extract-tiktok', {
+      body: { title: safeTitle, description: safeDescription },
     });
 
-    if (!response.ok) {
-      console.warn('[Share] extract-place function failed:', response.status);
+    if (error) {
+      console.warn('[Share] extract-place function failed:', error.message);
       return null;
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.warn('[Share] LLM extraction failed:', error);
     return null;
