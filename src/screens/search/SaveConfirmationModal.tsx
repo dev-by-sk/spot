@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { SpotButton } from '../../components/SpotButton';
 import { useSpotColors, spotEmerald } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
@@ -38,7 +37,6 @@ export function SaveConfirmationModal({
   if (!placeDTO) return null;
 
   const handleSave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onSave(noteText, dateVisited ? dateVisited.toISOString() : null);
     setNoteText('');
     setDateVisited(null);

@@ -23,6 +23,9 @@ import type {
 import { SpotError } from '../types';
 
 export interface PlacesContextValue {
+  // Network
+  isOnline: boolean;
+
   // Search
   searchQuery: string;
   setSearchQuery: (q: string) => void;
@@ -52,6 +55,7 @@ export interface PlacesContextValue {
 }
 
 export const PlacesContext = createContext<PlacesContextValue>({
+  isOnline: true,
   searchQuery: '',
   setSearchQuery: () => {},
   searchResults: [],
@@ -109,6 +113,10 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       setSearchResults([]);
       return;
     }
+    if (!isOnline) {
+      setSearchResults([]);
+      return;
+    }
     setIsSearching(true);
     try {
       const results = await GooglePlacesService.autocomplete(
@@ -128,9 +136,13 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [isOnline]);
 
   const getPlaceDetails = useCallback(async (placeId: string): Promise<PlaceCacheDTO | null> => {
+    if (!isOnline) {
+      setErrorMessage("You're offline. Place details unavailable.");
+      return null;
+    }
     try {
       const details = await GooglePlacesService.getPlaceDetails(placeId);
       analytics.track(AnalyticsEvent.SearchResultTapped, {
@@ -142,7 +154,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       setErrorMessage(error.message ?? 'Failed to load place details');
       return null;
     }
-  }, []);
+  }, [isOnline]);
 
   const savePlace = useCallback(
     async (dto: PlaceCacheDTO, note: string, userId: string, dateVisited?: string | null) => {
@@ -244,8 +256,8 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       currentUserIdRef.current = userId;
       setIsSyncing(true);
       try {
-        await pullFromRemote(userId, isOnline);
         await pushToRemote(userId, isOnline);
+        await pullFromRemote(userId, isOnline);
         await refreshPlaces(userId);
         analytics.track(AnalyticsEvent.SyncCompleted);
       } finally {
@@ -255,9 +267,23 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     [isOnline, refreshPlaces],
   );
 
+  // Auto-sync when connectivity is restored (silent — no isSyncing UI indicator)
+  const prevIsOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !prevIsOnlineRef.current && currentUserIdRef.current) {
+      const userId = currentUserIdRef.current;
+      pushToRemote(userId, true)
+        .then(() => pullFromRemote(userId, true))
+        .then(() => refreshPlaces(userId))
+        .catch((err) => console.warn('[Sync] Reconnect sync failed:', err));
+    }
+    prevIsOnlineRef.current = isOnline;
+  }, [isOnline, refreshPlaces]);
+
   return (
     <PlacesContext.Provider
       value={{
+        isOnline,
         searchQuery,
         setSearchQuery,
         searchResults,

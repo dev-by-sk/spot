@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   FlatList,
+  Pressable,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -12,6 +13,7 @@ import {
   InteractionManager,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../../hooks/usePlaces';
@@ -27,6 +29,7 @@ import { SpotError } from '../../types';
 
 export function SearchScreen() {
   const {
+    isOnline,
     searchQuery,
     setSearchQuery,
     searchResults,
@@ -56,11 +59,19 @@ export function SearchScreen() {
 
   React.useEffect(() => {
     if (extractionError) {
-      Alert.alert('Could not extract place', extractionError, [
-        { text: 'Search manually', onPress: () => clearShare() },
-      ]);
+      if (!isOnline) {
+        Alert.alert(
+          'Could not extract spot',
+          "You're offline. Try again when you're connected to the internet.",
+          [{ text: 'OK', onPress: () => clearShare() }],
+        );
+      } else {
+        Alert.alert('Could not extract spot', extractionError, [
+          { text: 'Search manually', onPress: () => clearShare() },
+        ]);
+      }
     }
-  }, [extractionError, clearShare]);
+  }, [extractionError, clearShare, isOnline]);
 
   React.useEffect(() => {
     if (!isFocused) {
@@ -93,11 +104,11 @@ export function SearchScreen() {
       if (!placeToSave || !currentUserId) return;
       try {
         await savePlace(placeToSave, note, currentUserId, dateVisited);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowConfirmation(false);
         setPlaceToSave(null);
         clearShare();
-        // Wait for modal dismiss animation to finish before switching tabs
-        setTimeout(() => navigation.navigate('List'), 500);
+        navigation.navigate('List');
       } catch (error: any) {
         setShowConfirmation(false);
         if (error instanceof SpotError && error.code === 'DUPLICATE_PLACE') {
@@ -133,13 +144,16 @@ export function SearchScreen() {
     [handleResultPress, colors],
   );
 
-  const showLoading = isSearching || isLoadingDetails;
-  const showNoResults = !isSearching && searchQuery.trim().length > 0 && searchResults.length === 0;
+  const showLoading = isSearching;
+  const showNoResults = !isSearching && searchQuery.trim().length > 0 && searchResults.length === 0 && isOnline;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.spotBackground }]} onTouchStart={Keyboard.dismiss}>
+    <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
       {/* Search bar */}
-      <View style={[styles.searchBar, { backgroundColor: colors.spotSearchBar }]}>
+      <View style={[
+        styles.searchBar,
+        { backgroundColor: colors.spotSearchBar, opacity: isOnline ? 1 : 0.45 },
+      ]}>
         <Ionicons name="search" size={18} color={colors.spotTextSecondary} />
         <TextInput
           style={[styles.searchInput, { color: colors.spotTextPrimary }]}
@@ -149,8 +163,9 @@ export function SearchScreen() {
           onChangeText={setSearchQuery}
           autoCorrect={false}
           autoCapitalize="none"
+          editable={isOnline}
         />
-        {searchQuery.length > 0 && (
+        {searchQuery.length > 0 && isOnline && (
           <TouchableOpacity onPress={handleClear}>
             <Ionicons name="close-circle" size={18} color={colors.spotTextSecondary} />
           </TouchableOpacity>
@@ -180,24 +195,31 @@ export function SearchScreen() {
       )}
 
       {/* Results */}
-      {showLoading ? (
+      {!isOnline ? (
+        <Pressable style={styles.centered} onPress={Keyboard.dismiss}>
+          <Text style={[styles.emptyText, { color: colors.spotTextSecondary }]}>
+            Search unavailable offline
+          </Text>
+        </Pressable>
+      ) : showLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.spotEmerald} />
         </View>
       ) : showNoResults ? (
-        <View style={styles.centered}>
+        <Pressable style={styles.centered} onPress={Keyboard.dismiss}>
           <Text style={[styles.emptyText, { color: colors.spotTextSecondary }]}>
             No results found
           </Text>
-        </View>
+        </Pressable>
       ) : searchQuery.trim().length === 0 ? (
-        <View style={styles.centered} />
+        <Pressable style={styles.centered} onPress={Keyboard.dismiss} />
       ) : (
         <FlatList
           data={searchResults}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         />
       )}
 

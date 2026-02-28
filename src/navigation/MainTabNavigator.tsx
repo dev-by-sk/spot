@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { ListStackNavigator } from './ListStackNavigator';
@@ -8,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePlaces } from '../hooks/usePlaces';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
 import { useSpotColors } from '../theme/colors';
+import { OfflineBanner } from '../components/OfflineBanner';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -32,7 +34,8 @@ export function MainTabNavigator() {
   }, [currentUserId, syncPlaces]);
 
   return (
-    <Tab.Navigator
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: colors.spotEmerald,
         tabBarInactiveTintColor: colors.spotTextSecondary,
@@ -85,5 +88,7 @@ export function MainTabNavigator() {
         }}
       />
     </Tab.Navigator>
+      <OfflineBanner />
+    </View>
   );
 }
