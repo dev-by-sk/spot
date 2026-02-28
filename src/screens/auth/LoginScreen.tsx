@@ -1,19 +1,61 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Animated,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../config/constants';
+
+// Required on Android for LayoutAnimation
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export function LoginScreen() {
   const { signInWithGoogle, isLoading, errorMessage } = useAuth();
   const colors = useSpotColors();
+
+  // Keep a local copy of the error so it remains visible during the fade-out
+  const [visibleError, setVisibleError] = useState<string | null>(null);
+  const errorOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (errorMessage) {
+      // Show: snap opacity to 0, then animate layout in + fade in
+      errorOpacity.setValue(0);
+      setVisibleError(errorMessage);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      Animated.timing(errorOpacity, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    } else if (visibleError) {
+      // Hide: fade out first, then animate layout collapse
+      Animated.timing(errorOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setVisibleError(null);
+        }
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorMessage]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
@@ -29,9 +71,18 @@ export function LoginScreen() {
 
       <View style={styles.spacer} />
 
+      {/* Error message — sits above the button so it pushes it down */}
+      {visibleError && (
+        <Animated.View style={[styles.errorContainer, { opacity: errorOpacity }]}>
+          <Ionicons name="alert-circle" size={13} color={colors.spotDanger} />
+          <Text style={[styles.errorText, { color: colors.spotDanger }]}>
+            {visibleError}
+          </Text>
+        </Animated.View>
+      )}
+
       {/* Auth buttons */}
       <View style={styles.authSection}>
-        {/* Google Sign-In */}
         <TouchableOpacity
           onPress={signInWithGoogle}
           disabled={isLoading}
@@ -59,20 +110,17 @@ export function LoginScreen() {
         />
       )}
 
-      {/* Error message */}
-      {errorMessage && (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={13} color={colors.spotDanger} />
-          <Text style={[styles.errorText, { color: colors.spotDanger }]}>
-            {errorMessage}
-          </Text>
-        </View>
-      )}
-
       {/* Terms */}
-      <Text style={[styles.terms, { color: colors.spotTextSecondary }]}>
-        By continuing, you agree to our Terms of Service and Privacy Policy
-      </Text>
+      <View style={styles.termsRow}>
+        <Text style={[styles.terms, { color: colors.spotTextSecondary }]}>By continuing, you agree to our </Text>
+        <TouchableOpacity onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)} activeOpacity={0.6}>
+          <Text style={[styles.terms, styles.termsLink, { color: colors.spotTextSecondary }]}>Terms of Service</Text>
+        </TouchableOpacity>
+        <Text style={[styles.terms, { color: colors.spotTextSecondary }]}> and </Text>
+        <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} activeOpacity={0.6}>
+          <Text style={[styles.terms, styles.termsLink, { color: colors.spotTextSecondary }]}>Privacy Policy</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -95,6 +143,17 @@ const styles = StyleSheet.create({
   tagline: {
     ...SpotTypography.body,
   },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingBottom: 12,
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    ...SpotTypography.footnote,
+  },
   authSection: {
     paddingHorizontal: 24,
     gap: 12,
@@ -113,22 +172,20 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 16,
   },
-  errorContainer: {
+  termsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 6,
-    paddingTop: 12,
-    paddingHorizontal: 24,
-  },
-  errorText: {
-    ...SpotTypography.footnote,
-  },
-  terms: {
-    ...SpotTypography.caption,
-    textAlign: 'center',
+    alignItems: 'center',
     paddingHorizontal: 40,
     paddingTop: 24,
     paddingBottom: 48,
+  },
+  terms: {
+    ...SpotTypography.caption,
+    textAlign : 'center',
+  },
+  termsLink: {
+    textDecorationLine: 'underline',
   },
 });

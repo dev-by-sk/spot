@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
+};
 
 const SYSTEM_PROMPT = `You extract restaurant/cafe/bar names from social media post metadata.
 
@@ -16,26 +25,47 @@ Rules:
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
-      },
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // Verify the user's JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return Response.json(
+        { error: "Missing authorization header" },
+        { status: 401, headers: corsHeaders },
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseClient.auth.getUser(token);
+
+    if (authError || !user) {
+      return Response.json(
+        { error: "Invalid or expired token" },
+        { status: 401, headers: corsHeaders },
+      );
+    }
+
     const { title, description } = await req.json();
 
     if (!title && !description) {
-      return Response.json({ placeName: null, location: null });
+      return Response.json(
+        { placeName: null, location: null },
+        { headers: corsHeaders },
+      );
     }
 
     if (!OPENAI_API_KEY) {
       return Response.json(
         { error: "OPENAI_API_KEY not configured" },
-        { status: 500 },
+        { status: 500, headers: corsHeaders },
       );
     }
 
@@ -65,7 +95,10 @@ serve(async (req) => {
     if (!response.ok) {
       const err = await response.text();
       console.error("[extract-place] OpenAI API error:", err);
-      return Response.json({ error: "LLM request failed" }, { status: 502 });
+      return Response.json(
+        { error: "LLM request failed" },
+        { status: 502, headers: corsHeaders },
+      );
     }
 
     const data = await response.json();
@@ -74,16 +107,25 @@ serve(async (req) => {
     // Parse the JSON from the response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return Response.json({ placeName: null, location: null });
+      return Response.json(
+        { placeName: null, location: null },
+        { headers: corsHeaders },
+      );
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
-    return Response.json({
-      placeName: parsed.placeName ?? null,
-      location: parsed.location ?? null,
-    });
+    return Response.json(
+      {
+        placeName: parsed.placeName ?? null,
+        location: parsed.location ?? null,
+      },
+      { headers: corsHeaders },
+    );
   } catch (error) {
     console.error("[extract-place] Error:", error);
-    return Response.json({ error: "Internal error" }, { status: 500 });
+    return Response.json(
+      { error: "Internal error" },
+      { status: 500, headers: corsHeaders },
+    );
   }
 });

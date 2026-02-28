@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../hooks/useAuth';
@@ -15,6 +15,14 @@ export function RootNavigator() {
   const { isAuthenticated, isLoading, checkSession } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
+  // Track whether auth state has been resolved at least once and whether
+  // the user was ever authenticated this session, so we can distinguish:
+  //  - app open with no session  → reset onboarding
+  //  - sign-in failure           → stay on login (no reset)
+  //  - sign-out                  → reset onboarding
+  const initialCheckDone = useRef(false);
+  const wasAuthenticated = useRef(false);
+
   useEffect(() => {
     (async () => {
       const seen = await AsyncStorage.getItem(ONBOARDING_KEY);
@@ -23,12 +31,31 @@ export function RootNavigator() {
     })();
   }, [checkSession]);
 
-  // Reset onboarding for unauthenticated users (matches Swift behavior)
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+
+    if (!initialCheckDone.current) {
+      // First resolution after app open
+      initialCheckDone.current = true;
+      if (isAuthenticated) {
+        wasAuthenticated.current = true;
+      } else {
+        // No valid session on startup → restart from onboarding
+        AsyncStorage.setItem(ONBOARDING_KEY, 'false');
+        setHasSeenOnboarding(false);
+      }
+      return;
+    }
+
+    if (isAuthenticated) {
+      wasAuthenticated.current = true;
+    } else if (wasAuthenticated.current) {
+      // Transitioned from authenticated → unauthenticated: genuine sign-out
+      wasAuthenticated.current = false;
       AsyncStorage.setItem(ONBOARDING_KEY, 'false');
       setHasSeenOnboarding(false);
     }
+    // else: was never authenticated this session → sign-in failed → do nothing
   }, [isLoading, isAuthenticated]);
 
   const handleOnboardingComplete = async () => {

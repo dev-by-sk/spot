@@ -7,6 +7,7 @@ import {
   Alert,
   StyleSheet,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
@@ -15,6 +16,7 @@ import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 import { spotEmerald } from '../../theme/colors';
 import { useTheme, type ThemePreference } from '../../context/ThemeContext';
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../config/constants';
 
 const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] = [
   { value: 'light', icon: 'sunny-outline',  label: 'Light' },
@@ -151,6 +153,31 @@ export function ProfileScreen() {
           <Text style={[styles.rowLabel, { color: colors.spotDanger }]}>
             Delete Account
           </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Legal section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}>
+          LEGAL
+        </Text>
+        <TouchableOpacity
+          style={[styles.row, { borderColor: colors.spotDivider }]}
+          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+        >
+          <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
+            Privacy Policy
+          </Text>
+          <Ionicons name="open-outline" size={16} color={colors.spotTextSecondary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.row, { borderColor: colors.spotDivider }]}
+          onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+        >
+          <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
+            Terms of Service
+          </Text>
+          <Ionicons name="open-outline" size={16} color={colors.spotTextSecondary} />
         </TouchableOpacity>
       </View>
 
