@@ -6,6 +6,7 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
+  ActivityIndicator,
   Animated,
   Easing,
   StyleSheet,
@@ -274,7 +275,9 @@ export function SavedPlacesListScreen() {
 
   if (isLoadingPlaces && savedPlaces.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]} />
+      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
+        <ActivityIndicator color={colors.spotEmerald} />
+      </View>
     );
   }
 

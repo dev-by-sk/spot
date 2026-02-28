@@ -43,7 +43,8 @@ export function SearchScreen() {
   const colors = useSpotColors();
   const navigation = useNavigation<any>();
 
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [placeToSave, setPlaceToSave] = useState<PlaceCacheDTO | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -88,28 +89,32 @@ export function SearchScreen() {
 
   const handleResultPress = useCallback(
     async (result: PlaceSearchResult) => {
-      setIsLoadingDetails(true);
+      if (loadingItemId) return;
+      setLoadingItemId(result.id);
       const details = await getPlaceDetails(result.id);
-      setIsLoadingDetails(false);
+      setLoadingItemId(null);
       if (details) {
         setPlaceToSave(details);
         setShowConfirmation(true);
       }
     },
-    [getPlaceDetails],
+    [loadingItemId, getPlaceDetails],
   );
 
   const handleSave = useCallback(
     async (note: string, dateVisited: string | null) => {
       if (!placeToSave || !currentUserId) return;
+      setIsSaving(true);
       try {
         await savePlace(placeToSave, note, currentUserId, dateVisited);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowConfirmation(false);
         setPlaceToSave(null);
+        setIsSaving(false);
         clearShare();
         navigation.navigate('List');
       } catch (error: any) {
+        setIsSaving(false);
         setShowConfirmation(false);
         if (error instanceof SpotError && error.code === 'DUPLICATE_PLACE') {
           Alert.alert('Already saved', 'This spot is already in your list.');
@@ -127,21 +132,28 @@ export function SearchScreen() {
   }, [setSearchQuery]);
 
   const renderItem = useCallback(
-    ({ item }: { item: PlaceSearchResult }) => (
-      <TouchableOpacity
-        onPress={() => handleResultPress(item)}
-        activeOpacity={0.6}
-        style={styles.resultItem}
-      >
-        <Text style={[styles.resultName, { color: colors.spotTextPrimary }]}>
-          {item.name}
-        </Text>
-        <Text style={[styles.resultAddress, { color: colors.spotTextSecondary }]}>
-          {item.address}
-        </Text>
-      </TouchableOpacity>
-    ),
-    [handleResultPress, colors],
+    ({ item }: { item: PlaceSearchResult }) => {
+      const isThisLoading = loadingItemId === item.id;
+      return (
+        <TouchableOpacity
+          onPress={() => handleResultPress(item)}
+          activeOpacity={isThisLoading ? 1 : 0.6}
+          disabled={loadingItemId !== null}
+          style={[styles.resultItem, isThisLoading && styles.resultItemLoading]}
+        >
+          <Text style={[styles.resultName, { color: colors.spotTextPrimary }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.resultAddress, { color: colors.spotTextSecondary }]}>
+            {item.address}
+          </Text>
+          {isThisLoading && (
+            <ActivityIndicator size="small" color={colors.spotEmerald} style={styles.resultSpinner} />
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [loadingItemId, handleResultPress, colors],
   );
 
   const showLoading = isSearching;
@@ -240,6 +252,7 @@ export function SearchScreen() {
         visible={showConfirmation}
         placeDTO={placeToSave}
         onSave={handleSave}
+        loading={isSaving}
         onCancel={() => {
           setShowConfirmation(false);
           setPlaceToSave(null);
@@ -281,11 +294,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 4,
   },
+  resultItemLoading: {
+    opacity: 0.6,
+  },
   resultName: {
     ...SpotTypography.headline,
   },
   resultAddress: {
     ...SpotTypography.footnote,
+  },
+  resultSpinner: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
   },
   extractionOverlay: {
     ...StyleSheet.absoluteFillObject,

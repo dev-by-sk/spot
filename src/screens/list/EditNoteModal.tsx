@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  ActivityIndicator,
   Keyboard,
   StyleSheet,
   KeyboardAvoidingView,
@@ -21,7 +22,7 @@ interface EditNoteModalProps {
   placeName: string;
   initialNote: string;
   initialDateVisited: string | null;
-  onSave: (note: string, dateVisited?: string | null) => void;
+  onSave: (note: string, dateVisited?: string | null) => Promise<void> | void;
   onCancel: () => void;
 }
 
@@ -36,6 +37,7 @@ export function EditNoteModal({
   const [noteText, setNoteText] = useState(initialNote);
   const [dateVisited, setDateVisited] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const colors = useSpotColors();
 
   useEffect(() => {
@@ -46,9 +48,15 @@ export function EditNoteModal({
     }
   }, [visible, initialNote, initialDateVisited]);
 
-  const handleSave = () => {
-    const dateStr = dateVisited ? dateVisited.toISOString().split('T')[0] : null;
-    onSave(noteText, dateStr);
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const dateStr = dateVisited ? dateVisited.toISOString().split('T')[0] : null;
+      await onSave(noteText, dateStr);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -78,13 +86,17 @@ export function EditNoteModal({
 
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onCancel} style={styles.headerButton}>
+            <TouchableOpacity onPress={onCancel} disabled={isSaving} style={styles.headerButton}>
               <Text style={[styles.cancelText, { color: colors.spotTextSecondary }]}>
                 Cancel
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
-              <Text style={[styles.saveText, { color: colors.spotEmerald }]}>Save</Text>
+            <TouchableOpacity onPress={handleSave} disabled={isSaving} style={styles.headerButton}>
+              {isSaving ? (
+                <ActivityIndicator size="small" color={colors.spotEmerald} />
+              ) : (
+                <Text style={[styles.saveText, { color: colors.spotEmerald }]}>Save</Text>
+              )}
             </TouchableOpacity>
           </View>
 

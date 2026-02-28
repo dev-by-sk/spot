@@ -95,20 +95,18 @@ export function LoginScreen() {
             },
           ]}
         >
-          <Ionicons name="logo-google" size={20} color="#FFFFFF" />
-          <Text style={[styles.googleText, { color: '#FFFFFF' }]}>
-            Sign in with Google
-          </Text>
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="logo-google" size={20} color="#FFFFFF" />
+              <Text style={[styles.googleText, { color: '#FFFFFF' }]}>
+                Sign in with Google
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
-
-      {/* Loading indicator */}
-      {isLoading && (
-        <ActivityIndicator
-          color={colors.spotEmerald}
-          style={styles.loader}
-        />
-      )}
 
       {/* Terms */}
       <View style={styles.termsRow}>
@@ -168,9 +166,6 @@ const styles = StyleSheet.create({
   },
   googleText: {
     ...SpotTypography.headline,
-  },
-  loader: {
-    marginTop: 16,
   },
   termsRow: {
     flexDirection: 'row',

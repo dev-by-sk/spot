@@ -5,6 +5,7 @@ import {
   Switch,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
   StyleSheet,
   ScrollView,
   Linking,
@@ -21,6 +22,8 @@ export function ProfileScreen() {
   const { userEmail, signOut, deleteAccount } = useAuth();
   const colors = useSpotColors();
   const [isPrivateProfile, setIsPrivateProfile] = useState(true);
+  const [isTogglingPrivacy, setIsTogglingPrivacy] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
 
@@ -38,12 +41,24 @@ export function ProfileScreen() {
   }, []);
 
   const handlePrivacyToggle = async (value: boolean) => {
+    if (isTogglingPrivacy) return;
     setIsPrivateProfile(value);
+    setIsTogglingPrivacy(true);
     try {
       await SupabaseService.updateProfilePrivacy(value);
     } catch {
-      // revert on error
       setIsPrivateProfile(!value);
+    } finally {
+      setIsTogglingPrivacy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -91,11 +106,15 @@ export function ProfileScreen() {
           <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
             Private Profile
           </Text>
-          <Switch
-            value={isPrivateProfile}
-            onValueChange={handlePrivacyToggle}
-            trackColor={{ true: spotEmerald }}
-          />
+          {isTogglingPrivacy ? (
+            <ActivityIndicator size="small" color={spotEmerald} />
+          ) : (
+            <Switch
+              value={isPrivateProfile}
+              onValueChange={handlePrivacyToggle}
+              trackColor={{ true: spotEmerald }}
+            />
+          )}
         </View>
       </View>
 
@@ -142,13 +161,18 @@ export function ProfileScreen() {
       {/* Log out */}
       <View style={styles.section}>
         <TouchableOpacity
-          onPress={signOut}
+          onPress={handleSignOut}
+          disabled={isSigningOut}
           activeOpacity={0.7}
-          style={[styles.logoutButton, { borderColor: colors.spotEmerald }]}
+          style={[styles.logoutButton, { borderColor: colors.spotEmerald, opacity: isSigningOut ? 0.6 : 1 }]}
         >
-          <Text style={[styles.logoutText, { color: colors.spotEmerald }]}>
-            Log out
-          </Text>
+          {isSigningOut ? (
+            <ActivityIndicator size="small" color={colors.spotEmerald} />
+          ) : (
+            <Text style={[styles.logoutText, { color: colors.spotEmerald }]}>
+              Log out
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
