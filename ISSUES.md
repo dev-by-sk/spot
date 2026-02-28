@@ -12,7 +12,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 1. Edge Function Has No Auth and Wide-Open CORS
+### 1. Edge Function Has No Auth and Wide-Open CORS -- THIS IS FIXED
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -86,7 +86,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 5. No Input Validation / Prompt Injection Risk
+### 5. No Input Validation / Prompt Injection Risk -- THIS IS FIXED
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -105,7 +105,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 6. No Timeout or Size Limit on URL Fetching
+### 6. No Timeout or Size Limit on URL Fetching -- THIS IS FIXED
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -123,7 +123,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 7. OAuth Token Handling Vulnerability
+### 7. OAuth Token Handling Vulnerability -- THIS IS FIXED
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -141,7 +141,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 8. No Privacy Policy or Terms of Service
+### 8. No Privacy Policy or Terms of Service -- THIS IS FIXED
 
 **Feature** · **Effort: Medium (2–3 hr)**
 
