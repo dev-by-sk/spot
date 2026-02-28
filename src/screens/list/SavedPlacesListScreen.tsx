@@ -50,6 +50,7 @@ export function SavedPlacesListScreen() {
     setSelectedFilter,
     syncPlaces,
     isSyncing,
+    pendingSyncCount,
   } = usePlaces();
   const { currentUserId } = useAuth();
   const colors = useSpotColors();
@@ -281,6 +282,16 @@ export function SavedPlacesListScreen() {
         </Text>
       </View>
 
+      {/* Sync pending banner */}
+      {pendingSyncCount > 0 && (
+        <View style={[styles.syncBanner, { backgroundColor: `${colors.spotEmerald}14` }]}>
+          <Ionicons name="cloud-upload-outline" size={14} color={colors.spotEmerald} />
+          <Text style={[styles.syncBannerText, { color: colors.spotEmerald }]}>
+            {pendingSyncCount} {pendingSyncCount === 1 ? 'change' : 'changes'} waiting to sync
+          </Text>
+        </View>
+      )}
+
       {/* Search bar */}
       <Pressable
         style={[styles.listSearchBar, { backgroundColor: colors.spotSearchBar }]}
@@ -459,6 +470,19 @@ const styles = StyleSheet.create({
   },
   screenTitleCount: {
     ...SpotTypography.title2,
+  },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  syncBannerText: {
+    ...SpotTypography.footnote,
   },
   listSearchBar: {
     flexDirection: 'row',

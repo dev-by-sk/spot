@@ -5,6 +5,7 @@ import {
   CREATE_SAVED_PLACES_TABLE,
   CREATE_SAVED_PLACES_USER_INDEX,
   CREATE_SAVED_PLACES_GOOGLE_INDEX,
+  CREATE_SYNC_QUEUE_TABLE,
 } from './schema';
 import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from '../types';
 
@@ -19,6 +20,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   await dbInstance.execAsync(CREATE_SAVED_PLACES_TABLE);
   await dbInstance.execAsync(CREATE_SAVED_PLACES_USER_INDEX);
   await dbInstance.execAsync(CREATE_SAVED_PLACES_GOOGLE_INDEX);
+  await dbInstance.execAsync(CREATE_SYNC_QUEUE_TABLE);
   return dbInstance;
 }
 

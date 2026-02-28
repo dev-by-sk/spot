@@ -13,6 +13,7 @@ import { useSavedPlaces } from '../db/useSavedPlaces';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
 import { requestLocationPermission, getCurrentLocation } from '../services/locationService';
 import { pullFromRemote, pushToRemote } from '../services/syncService';
+import { enqueueSync, processQueue, getPendingSyncCount } from '../services/syncQueueService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import type {
   PlaceSearchResult,
@@ -46,6 +47,7 @@ export interface PlacesContextValue {
   // Sync
   isSyncing: boolean;
   syncPlaces: (userId: string) => Promise<void>;
+  pendingSyncCount: number;
 
   // Error
   errorMessage: string | null;
@@ -68,6 +70,7 @@ export const PlacesContext = createContext<PlacesContextValue>({
   setSelectedFilter: () => {},
   isSyncing: false,
   syncPlaces: async () => {},
+  pendingSyncCount: 0,
   errorMessage: null,
 });
 
@@ -78,10 +81,17 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const [selectedFilter, setSelectedFilterState] = useState<PlaceCategory | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const isOnline = useNetworkStatus();
+  const prevIsOnlineRef = useRef(isOnline);
   const { places: savedPlaces, isLoading: isLoadingPlaces, refresh: refreshPlaces } = useSavedPlaces();
   const currentUserIdRef = useRef<string | null>(null);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  const refreshPendingCount = useCallback(async () => {
+    const count = await getPendingSyncCount();
+    setPendingSyncCount(count);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -96,6 +106,21 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, []);
+
+  // Load pending sync count on mount
+  useEffect(() => {
+    refreshPendingCount();
+  }, [refreshPendingCount]);
+
+  // Auto-retry queue when coming back online
+  useEffect(() => {
+    if (isOnline && !prevIsOnlineRef.current) {
+      processQueue()
+        .then(() => refreshPendingCount())
+        .catch((err) => console.warn('[SyncQueue] Auto-retry failed:', err));
+    }
+    prevIsOnlineRef.current = isOnline;
+  }, [isOnline, refreshPendingCount]);
 
   const setSelectedFilter = useCallback((f: PlaceCategory | null) => {
     setSelectedFilterState(f);
@@ -179,22 +204,30 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       // Refresh local list
       await refreshPlaces(userId);
 
-      // Async push to Supabase
-      try {
-        await SupabaseService.upsertPlaceCache(dto);
-        await SupabaseService.uploadSavedPlace({
-          id: placeId,
-          user_id: userId,
-          google_place_id: dto.google_place_id,
-          note_text: note,
-          date_visited: dateVisited ?? null,
-          saved_at: now,
-        });
-      } catch (error) {
-        console.warn('[Sync] Background save push failed:', error);
+      // Push to Supabase (or enqueue for retry)
+      const placeData = {
+        id: placeId,
+        user_id: userId,
+        google_place_id: dto.google_place_id,
+        note_text: note,
+        date_visited: dateVisited ?? null,
+        saved_at: now,
+      };
+      if (isOnline) {
+        try {
+          await SupabaseService.upsertPlaceCache(dto);
+          await SupabaseService.uploadSavedPlace(placeData);
+        } catch (error) {
+          console.warn('[Sync] Background save push failed, enqueuing:', error);
+          await enqueueSync('save', { cache: dto, place: placeData });
+          await refreshPendingCount();
+        }
+      } else {
+        await enqueueSync('save', { cache: dto, place: placeData });
+        await refreshPendingCount();
       }
     },
-    [refreshPlaces],
+    [refreshPlaces, isOnline, refreshPendingCount],
   );
 
   const deletePlaceById = useCallback(
@@ -208,14 +241,21 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         await refreshPlaces(currentUserIdRef.current);
       }
 
-      // Async delete from Supabase
-      try {
-        await SupabaseService.deleteSavedPlace(id);
-      } catch (error) {
-        console.warn('[Sync] Background delete push failed:', error);
+      // Delete from Supabase (or enqueue for retry)
+      if (isOnline) {
+        try {
+          await SupabaseService.deleteSavedPlace(id);
+        } catch (error) {
+          console.warn('[Sync] Background delete push failed, enqueuing:', error);
+          await enqueueSync('delete', { id });
+          await refreshPendingCount();
+        }
+      } else {
+        await enqueueSync('delete', { id });
+        await refreshPendingCount();
       }
     },
-    [refreshPlaces],
+    [refreshPlaces, isOnline, refreshPendingCount],
   );
 
   const updateNote = useCallback(
@@ -229,14 +269,21 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         await refreshPlaces(currentUserIdRef.current);
       }
 
-      // Async update on Supabase
-      try {
-        await SupabaseService.updateSavedPlaceNote(id, note, dateVisited);
-      } catch (error) {
-        console.warn('[Sync] Background note update push failed:', error);
+      // Update on Supabase (or enqueue for retry)
+      if (isOnline) {
+        try {
+          await SupabaseService.updateSavedPlaceNote(id, note, dateVisited);
+        } catch (error) {
+          console.warn('[Sync] Background note update push failed, enqueuing:', error);
+          await enqueueSync('update', { id, note, dateVisited });
+          await refreshPendingCount();
+        }
+      } else {
+        await enqueueSync('update', { id, note, dateVisited });
+        await refreshPendingCount();
       }
     },
-    [refreshPlaces],
+    [refreshPlaces, isOnline, refreshPendingCount],
   );
 
   const syncPlaces = useCallback(
@@ -244,6 +291,8 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       currentUserIdRef.current = userId;
       setIsSyncing(true);
       try {
+        await processQueue();
+        await refreshPendingCount();
         await pullFromRemote(userId, isOnline);
         await pushToRemote(userId, isOnline);
         await refreshPlaces(userId);
@@ -252,7 +301,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         setIsSyncing(false);
       }
     },
-    [isOnline, refreshPlaces],
+    [isOnline, refreshPlaces, refreshPendingCount],
   );
 
   return (
@@ -274,6 +323,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         setSelectedFilter,
         isSyncing,
         syncPlaces,
+        pendingSyncCount,
         errorMessage,
       }}
     >
