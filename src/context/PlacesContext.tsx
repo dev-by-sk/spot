@@ -87,6 +87,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const isOnline = useNetworkStatus();
   const { places: savedPlaces, isLoading: isLoadingPlaces, refresh: refreshPlaces } = useSavedPlaces();
   const currentUserIdRef = useRef<string | null>(null);
+  const isSyncInProgressRef = useRef(false);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
@@ -257,6 +258,8 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
 
   const syncPlaces = useCallback(
     async (userId: string) => {
+      if (isSyncInProgressRef.current) return;
+      isSyncInProgressRef.current = true;
       currentUserIdRef.current = userId;
       setIsSyncing(true);
       try {
@@ -266,6 +269,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         analytics.track(AnalyticsEvent.SyncCompleted);
       } finally {
         setIsSyncing(false);
+        isSyncInProgressRef.current = false;
       }
     },
     [isOnline, refreshPlaces],
@@ -275,11 +279,14 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const prevIsOnlineRef = useRef(isOnline);
   useEffect(() => {
     if (isOnline && !prevIsOnlineRef.current && currentUserIdRef.current) {
+      if (isSyncInProgressRef.current) return;
+      isSyncInProgressRef.current = true;
       const userId = currentUserIdRef.current;
       pushToRemote(userId, true)
         .then(() => pullFromRemote(userId, true))
         .then(() => refreshPlaces(userId))
-        .catch((err) => console.warn('[Sync] Reconnect sync failed:', err));
+        .catch((err) => console.warn('[Sync] Reconnect sync failed:', err))
+        .finally(() => { isSyncInProgressRef.current = false; });
     }
     prevIsOnlineRef.current = isOnline;
   }, [isOnline, refreshPlaces]);
