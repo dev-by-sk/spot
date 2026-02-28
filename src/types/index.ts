@@ -128,7 +128,7 @@ export function categoryFromGoogleTypes(types: string[]): PlaceCategory {
 
 export class SpotError extends Error {
   constructor(
-    public code: 'DUPLICATE_PLACE' | 'PLACE_NOT_FOUND' | 'NETWORK_ERROR',
+    public code: 'DUPLICATE_PLACE' | 'PLACE_NOT_FOUND' | 'NETWORK_ERROR' | 'RATE_LIMITED',
     message: string,
   ) {
     super(message);
@@ -145,5 +145,9 @@ export class SpotError extends Error {
 
   static networkError(msg: string) {
     return new SpotError('NETWORK_ERROR', msg);
+  }
+
+  static rateLimited() {
+    return new SpotError('RATE_LIMITED', 'Too many requests — please slow down and try again');
   }
 }
