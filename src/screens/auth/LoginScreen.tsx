@@ -5,11 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../config/constants';
 
 export function LoginScreen() {
   const { signInWithGoogle, isLoading, errorMessage } = useAuth();
@@ -70,9 +72,16 @@ export function LoginScreen() {
       )}
 
       {/* Terms */}
-      <Text style={[styles.terms, { color: colors.spotTextSecondary }]}>
-        By continuing, you agree to our Terms of Service and Privacy Policy
-      </Text>
+      <View style={styles.termsRow}>
+        <Text style={[styles.terms, { color: colors.spotTextSecondary }]}>By continuing, you agree to our </Text>
+        <TouchableOpacity onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)} activeOpacity={0.6}>
+          <Text style={[styles.terms, styles.termsLink, { color: colors.spotTextSecondary }]}>Terms of Service</Text>
+        </TouchableOpacity>
+        <Text style={[styles.terms, { color: colors.spotTextSecondary }]}> and </Text>
+        <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} activeOpacity={0.6}>
+          <Text style={[styles.terms, styles.termsLink, { color: colors.spotTextSecondary }]}>Privacy Policy</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -124,11 +133,19 @@ const styles = StyleSheet.create({
   errorText: {
     ...SpotTypography.footnote,
   },
-  terms: {
-    ...SpotTypography.caption,
-    textAlign: 'center',
+  termsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 40,
     paddingTop: 24,
     paddingBottom: 48,
+  },
+  terms: {
+    ...SpotTypography.caption,
+  },
+  termsLink: {
+    textDecorationLine: 'underline',
   },
 });
