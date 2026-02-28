@@ -40,6 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-sqlite',
     'expo-screen-orientation',
     'expo-web-browser',
+    'expo-secure-store',
     [
       'expo-share-intent',
       {
