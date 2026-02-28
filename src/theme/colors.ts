@@ -1,4 +1,4 @@
-import { useColorScheme } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 // ── Brand ──
 export const spotEmerald = '#047857';
@@ -35,8 +35,8 @@ export type SpotColors = typeof lightColors & {
 };
 
 export function useSpotColors(): SpotColors {
-  const scheme = useColorScheme();
-  const adaptive = scheme === 'dark' ? darkColors : lightColors;
+  const { resolvedScheme } = useTheme();
+  const adaptive = resolvedScheme === 'dark' ? darkColors : lightColors;
   return {
     ...adaptive,
     spotEmerald,
