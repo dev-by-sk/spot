@@ -12,7 +12,9 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as SQLite from "expo-sqlite";
+import { useSpotColors } from "../theme/colors";
 import {
   CREATE_PLACE_CACHE_TABLE,
   CREATE_SAVED_PLACES_TABLE,
@@ -21,6 +23,7 @@ import {
   CREATE_PENDING_DELETIONS_TABLE,
 } from "./schema";
 import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from "../types";
+import { SpotTypography } from "../theme/typography";
 
 const DB_NAME = "spot.db";
 
@@ -266,28 +269,37 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     initDatabase();
   }, [initDatabase]);
 
+  const colors = useSpotColors();
+
   if (initError) {
-    return React.createElement(View, { style: dbErrorStyles.container }, [
+    return React.createElement(
+      View,
+      { style: [dbErrorStyles.container, { backgroundColor: colors.spotBackground }] },
+      React.createElement(Ionicons, {
+        name: "warning-outline",
+        size: 48,
+        color: colors.spotTextSecondary,
+        style: dbErrorStyles.icon,
+      }),
       React.createElement(
         Text,
-        { key: "emoji", style: dbErrorStyles.emoji },
-        "\u26A0\uFE0F",
-      ),
-      React.createElement(
-        Text,
-        { key: "title", style: dbErrorStyles.title },
+        { style: [dbErrorStyles.title, { color: colors.spotTextPrimary }] },
         "Something went wrong",
       ),
       React.createElement(
         Text,
-        { key: "message", style: dbErrorStyles.message },
-        "We couldn\u2019t load your data. This can sometimes happen after an update or if storage is full. Tap below to try again.",
+        { style: [dbErrorStyles.message, { color: colors.spotTextSecondary }] },
+        "We couldn\u2019t load your data",
+      ),
+      React.createElement(
+        Text,
+        { style: [dbErrorStyles.submessage, { color: colors.spotTextSecondary }] },
+        "Tap below to try again",
       ),
       React.createElement(
         TouchableOpacity,
         {
-          key: "button",
-          style: dbErrorStyles.button,
+          style: [dbErrorStyles.button, { backgroundColor: colors.spotEmerald }],
           onPress: initDatabase,
           disabled: retrying,
         },
@@ -299,7 +311,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
               "Try Again",
             ),
       ),
-    ]);
+    );
   }
 
   return React.createElement(
@@ -315,27 +327,25 @@ const dbErrorStyles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
-    backgroundColor: "#FAFAF9",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 12,
-  },
-  message: {
-    fontSize: 16,
-    color: "#6B7280",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 28,
-  },
-  emoji: {
-    fontSize: 48,
+  icon: {
     marginBottom: 16,
   },
+  title: {
+    ...SpotTypography.title2,
+    marginBottom: 8,
+  },
+  message: {
+    ...SpotTypography.body,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  submessage: {
+    ...SpotTypography.callout,
+    textAlign: "center",
+    marginBottom: 28,
+  },
   button: {
-    backgroundColor: "#047857",
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
@@ -343,8 +353,7 @@ const dbErrorStyles = StyleSheet.create({
     alignItems: "center",
   },
   buttonText: {
+    ...SpotTypography.headline,
     color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "600",
   },
 });
