@@ -1,5 +1,7 @@
 import React, { Component, ErrorInfo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { spotEmerald } from '../theme/colors';
+import { SpotTypography } from '../theme/typography';
 
 interface Props {
   children: React.ReactNode;
@@ -29,21 +31,33 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.subtitle}>
-            The app ran into an unexpected error. Please try restarting.
-          </Text>
-          <TouchableOpacity style={styles.button} onPress={this.handleRestart}>
-            <Text style={styles.buttonText}>Restart</Text>
-          </TouchableOpacity>
-        </View>
-      );
+      return <ErrorFallback onRestart={this.handleRestart} />;
     }
-
     return this.props.children;
   }
+}
+
+function ErrorFallback({ onRestart }: { onRestart: () => void }) {
+  const isDark = useColorScheme() === 'dark';
+  const bg = isDark ? '#000000' : '#FAFAF9';
+  const textPrimary = isDark ? '#FFFFFF' : '#111827';
+  const textSecondary = isDark ? '#9CA3AF' : '#6B7280';
+  return (
+    <View style={[styles.container, { backgroundColor: bg }]}>
+      <Text style={[styles.title, { color: textPrimary }]}>
+        Something went wrong
+      </Text>
+      <Text style={[styles.subtitle, { color: textSecondary }]}>
+        The app ran into an unexpected error. Please try restarting
+      </Text>
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: spotEmerald }]}
+        onPress={onRestart}
+      >
+        <Text style={styles.buttonText}>Restart</Text>
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -52,30 +66,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-    backgroundColor: '#FFFFFF',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1C1C1E',
+    ...SpotTypography.title2,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#8E8E93',
+    ...SpotTypography.body,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
   },
   button: {
-    backgroundColor: '#34C759',
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...SpotTypography.headline,
     color: '#FFFFFF',
   },
 });

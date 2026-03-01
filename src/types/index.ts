@@ -78,6 +78,7 @@ export enum PlaceCategory {
   Dessert = 'Dessert',
   Activity = 'Activity',
   Entertainment = 'Entertainment',
+  Gym = 'Gym',
   Other = 'Other',
 }
 
@@ -88,6 +89,7 @@ export const ALL_CATEGORIES: PlaceCategory[] = [
   PlaceCategory.Dessert,
   PlaceCategory.Activity,
   PlaceCategory.Entertainment,
+  PlaceCategory.Gym,
   PlaceCategory.Other,
 ];
 
@@ -118,6 +120,8 @@ export function categoryFromGoogleTypes(types: string[]): PlaceCategory {
       case 'tourist_attraction':
       case 'zoo':
         return PlaceCategory.Activity;
+      case 'gym':
+        return PlaceCategory.Gym;
     }
   }
   return PlaceCategory.Other;
