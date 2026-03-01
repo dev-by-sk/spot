@@ -172,10 +172,6 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const getPlaceDetails = useCallback(
     async (placeId: string): Promise<PlaceCacheDTO | null> => {
       if (!isOnline) {
-        showToast({
-          text: "You're offline. Place details unavailable.",
-          type: "error",
-        });
         return null;
       }
       try {
@@ -251,10 +247,9 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         });
       } catch (error) {
         console.warn("[Sync] Background save push failed:", error);
-        showToast({ text: "Saved locally. Cloud sync failed.", type: "info" });
       }
     },
-    [refreshPlaces, showToast],
+    [refreshPlaces],
   );
 
   const deletePlaceById = useCallback(
@@ -278,13 +273,9 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
           "[Sync] Background delete push failed — will retry on reconnect:",
           error,
         );
-        showToast({
-          text: "Deleted locally. Cloud sync will retry.",
-          type: "info",
-        });
       }
     },
-    [refreshPlaces, showToast],
+    [refreshPlaces],
   );
 
   const updateNote = useCallback(
@@ -308,13 +299,9 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         await SupabaseService.updateSavedPlaceNote(id, note, dateVisited);
       } catch (error) {
         console.warn("[Sync] Background note update push failed:", error);
-        showToast({
-          text: "Note saved locally. Cloud sync failed.",
-          type: "info",
-        });
       }
     },
-    [refreshPlaces, showToast],
+    [refreshPlaces],
   );
 
   const syncPlaces = useCallback(
@@ -326,10 +313,6 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       try {
         if (!isOnline) {
           await refreshPlaces(userId);
-          showToast({
-            text: "You're offline. Showing saved spots.",
-            type: "info",
-          });
           return;
         }
         await pushToRemote(userId, isOnline);
@@ -338,7 +321,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         analytics.track(AnalyticsEvent.SyncCompleted);
       } catch (error) {
         showToast({
-          text: "Sync failed. Pull down to try again.",
+          text: "Sync failed, pull down to try again",
           type: "error",
           action: { label: "Retry", onPress: () => syncPlaces(userId) },
         });
@@ -363,18 +346,13 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         .then(() => refreshPlaces(userId))
         .catch((err) => {
           console.warn("[Sync] Reconnect sync failed:", err);
-          showToast({
-            text: "Sync failed after reconnecting.",
-            type: "error",
-            action: { label: "Retry", onPress: () => syncPlaces(userId) },
-          });
         })
         .finally(() => {
           isSyncInProgressRef.current = false;
         });
     }
     prevIsOnlineRef.current = isOnline;
-  }, [isOnline, refreshPlaces, showToast, syncPlaces]);
+  }, [isOnline, refreshPlaces]);
 
   return (
     <PlacesContext.Provider

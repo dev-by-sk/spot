@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error || !data.url) {
         console.error('[Auth] signInWithOAuth failed:', error, 'url:', data?.url);
-        showToast({ text: 'Failed to start Google sign in.', type: 'error' });
+        showToast({ text: 'Failed to start Google sign in', type: 'error' });
         return;
       }
 
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const codeMatch = result.url.match(/[?&]code=([^&#]+)/);
       const authCode = codeMatch?.[1];
       if (!authCode) {
-        showToast({ text: 'Sign in failed. Please try again.', type: 'error' });
+        showToast({ text: 'Sign in failed, please try again', type: 'error' });
         return;
       }
 
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (sessionError || !sessionData.user) {
         console.error('[Auth] exchangeCodeForSession failed:', sessionError);
-        showToast({ text: 'Sign in failed. Please try again.', type: 'error' });
+        showToast({ text: 'Sign in failed, please try again', type: 'error' });
         return;
       }
 
@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       analytics.track(AnalyticsEvent.SignInCompleted, { provider: 'google' });
     } catch (error: any) {
       console.error('[Auth] signInWithGoogle threw:', error);
-      showToast({ text: 'Sign in failed. Please try again.', type: 'error', action: { label: 'Retry', onPress: () => signInWithGoogle() } });
+      showToast({ text: 'Sign in failed, please try again', type: 'error', action: { label: 'Retry', onPress: () => signInWithGoogle() } });
     } finally {
       setIsSigningIn(false);
     }
@@ -192,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     if (!isOnline) {
-      showToast({ text: 'You need to be online to delete your account.', type: 'error' });
+      showToast({ text: 'You need to be online to delete your account', type: 'error' });
       return;
     }
     setIsLoading(true);
@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUserId(null);
       setUserEmail(null);
     } catch {
-      showToast({ text: 'Failed to delete account. Please try again.', type: 'error' });
+      showToast({ text: 'Failed to delete account, please try again', type: 'error' });
     } finally {
       setIsLoading(false);
     }

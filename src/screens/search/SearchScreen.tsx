@@ -18,7 +18,6 @@ import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlaces } from "../../hooks/usePlaces";
 import { useAuth } from "../../hooks/useAuth";
-import { useToast } from "../../context/ToastContext";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useShare } from "../../context/ShareContext";
 import { useSpotColors } from "../../theme/colors";
@@ -47,7 +46,6 @@ export function SearchScreen() {
     clearShare,
     testExtract,
   } = useShare();
-  const { showToast } = useToast();
   const colors = useSpotColors();
   const navigation = useNavigation<any>();
 
@@ -198,13 +196,7 @@ export function SearchScreen() {
           },
         ]}
         onPress={() => {
-          if (!isOnline) {
-            showToast({
-              text: "Search requires an internet connection.",
-              type: "error",
-            });
-            return;
-          }
+          if (!isOnline) return;
           searchInputRef.current?.focus();
         }}
       >
