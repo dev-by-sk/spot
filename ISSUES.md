@@ -68,7 +68,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 4. Silent Sync Failures — Data Loss Risk
+### 4. Silent Sync Failures — Data Loss Risk -- THIS IS PARTIALLY DONE MIGHT BE DROPPED BECAUSE ISSUE 9 FIX IS GOOD NEOUGH FOR NOW
 
 **Fix** · **Effort: Large (4–6 hr)**
 
@@ -161,7 +161,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 9. No Offline Awareness in UI
+### 9. No Offline Awareness in UI -- THIS IS FIXED
 
 **Fix** · **Effort: Medium (2–3 hr)**
 

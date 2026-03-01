@@ -10,6 +10,7 @@ import { usePlaces } from '../hooks/usePlaces';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
 import { useSpotColors } from '../theme/colors';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { ToastBanner } from '../components/ToastBanner';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -29,7 +30,7 @@ export function MainTabNavigator() {
   useEffect(() => {
     if (currentUserId && !hasSynced.current) {
       hasSynced.current = true;
-      syncPlaces(currentUserId);
+      syncPlaces(currentUserId).catch(() => {});
     }
   }, [currentUserId, syncPlaces]);
 
@@ -89,6 +90,7 @@ export function MainTabNavigator() {
       />
     </Tab.Navigator>
       <OfflineBanner />
+      <ToastBanner />
     </View>
   );
 }

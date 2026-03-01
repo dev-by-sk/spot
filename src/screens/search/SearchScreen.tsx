@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -11,21 +11,21 @@ import {
   Keyboard,
   StyleSheet,
   InteractionManager,
-} from 'react-native';
-import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { usePlaces } from '../../hooks/usePlaces';
-import { useAuth } from '../../hooks/useAuth';
-import { useDebounce } from '../../hooks/useDebounce';
-import { useShare } from '../../context/ShareContext';
-import { useSpotColors } from '../../theme/colors';
-import { SpotTypography } from '../../theme/typography';
-import { SEARCH_DEBOUNCE_MS } from '../../config/constants';
-import { SaveConfirmationModal } from './SaveConfirmationModal';
-import type { PlaceCacheDTO, PlaceSearchResult } from '../../types';
-import { SpotError } from '../../types';
+} from "react-native";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { usePlaces } from "../../hooks/usePlaces";
+import { useAuth } from "../../hooks/useAuth";
+import { useDebounce } from "../../hooks/useDebounce";
+import { useShare } from "../../context/ShareContext";
+import { useSpotColors } from "../../theme/colors";
+import { SpotTypography } from "../../theme/typography";
+import { SEARCH_DEBOUNCE_MS } from "../../config/constants";
+import { SaveConfirmationModal } from "./SaveConfirmationModal";
+import type { PlaceCacheDTO, PlaceSearchResult } from "../../types";
+import { SpotError } from "../../types";
 
 export function SearchScreen() {
   const {
@@ -39,12 +39,18 @@ export function SearchScreen() {
     savePlace,
   } = usePlaces();
   const { currentUserId } = useAuth();
-  const { pendingPlace, isExtracting, extractionError, clearShare, testExtract } = useShare();
+  const {
+    pendingPlace,
+    isExtracting,
+    extractionError,
+    clearShare,
+    testExtract,
+  } = useShare();
   const colors = useSpotColors();
   const navigation = useNavigation<any>();
 
   const searchInputRef = useRef<TextInput>(null);
-  const searchDispatchedFor = useRef('');
+  const searchDispatchedFor = useRef("");
 
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,13 +71,13 @@ export function SearchScreen() {
     if (extractionError) {
       if (!isOnline) {
         Alert.alert(
-          'Could not extract spot',
+          "Could not extract spot",
           "You're offline. Try again when you're connected to the internet.",
-          [{ text: 'OK', onPress: () => clearShare() }],
+          [{ text: "OK", onPress: () => clearShare() }],
         );
       } else {
-        Alert.alert('Could not extract spot', extractionError, [
-          { text: 'Search manually', onPress: () => clearShare() },
+        Alert.alert("Could not extract spot", extractionError, [
+          { text: "Search manually", onPress: () => clearShare() },
         ]);
       }
     }
@@ -79,7 +85,7 @@ export function SearchScreen() {
 
   React.useEffect(() => {
     if (!isFocused) {
-      setSearchQuery('');
+      setSearchQuery("");
     }
   }, [isFocused, setSearchQuery]);
 
@@ -116,15 +122,15 @@ export function SearchScreen() {
         setPlaceToSave(null);
         setIsSaving(false);
         clearShare();
-        navigation.navigate('List');
+        navigation.navigate("List");
       } catch (error: any) {
         setIsSaving(false);
         setShowConfirmation(false);
-        if (error instanceof SpotError && error.code === 'DUPLICATE_PLACE') {
-          Alert.alert('Already saved', 'This spot is already in your list.');
+        if (error instanceof SpotError && error.code === "DUPLICATE_PLACE") {
+          Alert.alert("Already saved", "This spot is already in your list.");
         } else {
-          console.error('[Save] Error:', error);
-          Alert.alert('Save failed', error?.message ?? 'Something went wrong.');
+          console.error("[Save] Error:", error);
+          Alert.alert("Save failed", error?.message ?? "Something went wrong.");
         }
       }
     },
@@ -132,7 +138,7 @@ export function SearchScreen() {
   );
 
   const handleClear = useCallback(() => {
-    setSearchQuery('');
+    setSearchQuery("");
   }, [setSearchQuery]);
 
   const renderItem = useCallback(
@@ -148,11 +154,17 @@ export function SearchScreen() {
           <Text style={[styles.resultName, { color: colors.spotTextPrimary }]}>
             {item.name}
           </Text>
-          <Text style={[styles.resultAddress, { color: colors.spotTextSecondary }]}>
+          <Text
+            style={[styles.resultAddress, { color: colors.spotTextSecondary }]}
+          >
             {item.address}
           </Text>
           {isThisLoading && (
-            <ActivityIndicator size="small" color={colors.spotEmerald} style={styles.resultSpinner} />
+            <ActivityIndicator
+              size="small"
+              color={colors.spotEmerald}
+              style={styles.resultSpinner}
+            />
           )}
         </TouchableOpacity>
       );
@@ -160,19 +172,33 @@ export function SearchScreen() {
     [loadingItemId, handleResultPress, colors],
   );
 
-  const pendingDispatch = debouncedQuery.trim().length > 0 && debouncedQuery !== searchDispatchedFor.current;
+  const pendingDispatch =
+    debouncedQuery.trim().length > 0 &&
+    debouncedQuery !== searchDispatchedFor.current;
   const showLoading = isSearching || pendingDispatch;
-  const showNoResults = !showLoading && debouncedQuery.trim().length > 0 && searchResults.length === 0 && isOnline;
+  const showNoResults =
+    !showLoading &&
+    debouncedQuery.trim().length > 0 &&
+    searchResults.length === 0 &&
+    isOnline;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
+    <View
+      style={[styles.container, { backgroundColor: colors.spotBackground }]}
+    >
       {/* Search bar */}
       <Pressable
         style={[
           styles.searchBar,
-          { backgroundColor: colors.spotSearchBar, opacity: isOnline ? 1 : 0.45 },
+          {
+            backgroundColor: colors.spotSearchBar,
+            opacity: isOnline ? 1 : 0.45,
+          },
         ]}
-        onPress={() => searchInputRef.current?.focus()}
+        onPress={() => {
+          if (!isOnline) return;
+          searchInputRef.current?.focus();
+        }}
       >
         <Ionicons name="search" size={18} color={colors.spotTextSecondary} />
         <TextInput
@@ -185,10 +211,15 @@ export function SearchScreen() {
           autoCorrect={false}
           autoCapitalize="none"
           editable={isOnline}
+          pointerEvents={isOnline ? "auto" : "none"}
         />
         {searchQuery.length > 0 && isOnline && (
           <TouchableOpacity onPress={handleClear}>
-            <Ionicons name="close-circle" size={18} color={colors.spotTextSecondary} />
+            <Ionicons
+              name="close-circle"
+              size={18}
+              color={colors.spotTextSecondary}
+            />
           </TouchableOpacity>
         )}
       </Pressable>
@@ -197,19 +228,27 @@ export function SearchScreen() {
       {__DEV__ && (
         <View style={styles.testExtractRow}>
           <TouchableOpacity
-            style={[styles.testExtractButton, { backgroundColor: colors.spotEmerald }]}
+            style={[
+              styles.testExtractButton,
+              { backgroundColor: colors.spotEmerald },
+            ]}
             onPress={async () => {
               const text = await Clipboard.getStringAsync();
               const url = text?.trim();
               if (!url) {
-                Alert.alert('Clipboard empty', 'Copy a URL first.');
+                Alert.alert("Clipboard empty", "Copy a URL first.");
                 return;
               }
               Keyboard.dismiss();
               testExtract(url);
             }}
           >
-            <Ionicons name="clipboard-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+            <Ionicons
+              name="clipboard-outline"
+              size={16}
+              color="#fff"
+              style={{ marginRight: 6 }}
+            />
             <Text style={styles.testExtractButtonText}>Paste & Extract</Text>
           </TouchableOpacity>
         </View>
@@ -247,9 +286,16 @@ export function SearchScreen() {
       {/* Share extraction loading overlay */}
       {isExtracting && (
         <View style={styles.extractionOverlay}>
-          <View style={[styles.extractionBox, { backgroundColor: colors.spotBackground }]}>
+          <View
+            style={[
+              styles.extractionBox,
+              { backgroundColor: colors.spotBackground },
+            ]}
+          >
             <ActivityIndicator size="large" color={colors.spotEmerald} />
-            <Text style={[styles.extractionText, { color: colors.spotTextPrimary }]}>
+            <Text
+              style={[styles.extractionText, { color: colors.spotTextPrimary }]}
+            >
               Extracting place...
             </Text>
           </View>
@@ -277,8 +323,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderRadius: 12,
     marginHorizontal: 16,
@@ -292,8 +338,8 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyText: {
     ...SpotTypography.body,
@@ -313,22 +359,22 @@ const styles = StyleSheet.create({
     ...SpotTypography.footnote,
   },
   resultSpinner: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
     top: 0,
     bottom: 0,
   },
   extractionOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 10,
   },
   extractionBox: {
     borderRadius: 16,
     padding: 32,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 16,
   },
   extractionText: {
@@ -339,16 +385,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   testExtractButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
   },
   testExtractButtonText: {
-    color: '#fff',
+    color: "#fff",
     ...SpotTypography.footnote,
-    fontWeight: '600' as const,
+    fontWeight: "600" as const,
   },
 });
