@@ -39,6 +39,7 @@ export interface PlaceCacheDTO {
   last_refreshed: string;
   website?: string | null;
   phone_number?: string | null;
+  opening_hours?: string | null;
 }
 
 // ── Search ──
@@ -71,6 +72,7 @@ export interface SavedPlaceLocal {
   last_refreshed: string | null;
   website: string | null;
   phone_number: string | null;
+  opening_hours: string | null;
 }
 
 // ── Category ──

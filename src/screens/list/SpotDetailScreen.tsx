@@ -1,24 +1,30 @@
-import React, { useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSpotColors } from '../../theme/colors';
-import { SpotTypography } from '../../theme/typography';
-import { relativeDate } from '../../utils/relativeDate';
-import type { ListStackParamList } from '../../navigation/types';
+import React, { useCallback } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Linking,
+  Platform,
+} from "react-native";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useSpotColors } from "../../theme/colors";
+import { SpotTypography } from "../../theme/typography";
+import { relativeDate } from "../../utils/relativeDate";
+import type { ListStackParamList } from "../../navigation/types";
 
-type Props = NativeStackScreenProps<ListStackParamList, 'PlaceDetail'>;
+type Props = NativeStackScreenProps<ListStackParamList, "PlaceDetail">;
 
 export function SpotDetailScreen({ route, navigation }: Props) {
   const { place } = route.params;
   const colors = useSpotColors();
   const insets = useSafeAreaInsets();
 
-  const priceLabel = place.price_level
-    ? '$'.repeat(place.price_level)
-    : null;
+  const priceLabel = place.price_level ? "$".repeat(place.price_level) : null;
 
   const openInMaps = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -26,15 +32,14 @@ export function SpotDetailScreen({ route, navigation }: Props) {
     let url: string;
 
     if (lat != null && lng != null) {
-      const label = encodeURIComponent(name ?? address ?? 'Place');
-      url = Platform.OS === 'ios'
-        ? `maps://?q=${label}&ll=${lat},${lng}`
-        : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+      const label = encodeURIComponent(name ?? address ?? "Place");
+      url =
+        Platform.OS === "ios"
+          ? `maps://?q=${label}&ll=${lat},${lng}`
+          : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
     } else if (address) {
       const query = encodeURIComponent(address);
-      url = Platform.OS === 'ios'
-        ? `maps://?q=${query}`
-        : `geo:0,0?q=${query}`;
+      url = Platform.OS === "ios" ? `maps://?q=${query}` : `geo:0,0?q=${query}`;
     } else {
       return;
     }
@@ -43,10 +48,13 @@ export function SpotDetailScreen({ route, navigation }: Props) {
     if (canOpen) {
       Linking.openURL(url);
     } else {
-      const query = lat != null && lng != null
-        ? `${lat},${lng}`
-        : encodeURIComponent(address ?? '');
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+      const query =
+        lat != null && lng != null
+          ? `${lat},${lng}`
+          : encodeURIComponent(address ?? "");
+      Linking.openURL(
+        `https://www.google.com/maps/search/?api=1&query=${query}`,
+      );
     }
   }, [place]);
 
@@ -63,7 +71,9 @@ export function SpotDetailScreen({ route, navigation }: Props) {
   }, [place.phone_number]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
+    <View
+      style={[styles.container, { backgroundColor: colors.spotBackground }]}
+    >
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
@@ -76,18 +86,26 @@ export function SpotDetailScreen({ route, navigation }: Props) {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Name */}
         <Text style={[styles.name, { color: colors.spotTextPrimary }]}>
-          {place.name ?? 'Unknown'}
+          {place.name ?? "Unknown"}
         </Text>
 
         {/* Category + cuisine */}
         <View style={styles.tagRow}>
           {place.category ? (
-            <View style={[styles.badge, { backgroundColor: `${colors.spotEmerald}1A` }]}>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: `${colors.spotEmerald}1A` },
+              ]}
+            >
               <Text style={[styles.badgeText, { color: colors.spotEmerald }]}>
                 {place.category}
               </Text>
@@ -101,20 +119,50 @@ export function SpotDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Info card */}
-        <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.spotCardBackground,
+              borderColor: colors.spotDivider,
+            },
+          ]}
+        >
           {place.rating != null && place.rating > 0 ? (
             <>
               <View style={styles.cardRow}>
-                <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
+                <View
+                  style={[
+                    styles.iconWrap,
+                    { backgroundColor: `${colors.spotEmerald}15` },
+                  ]}
+                >
                   <Ionicons name="star" size={15} color="#F59E0B" />
                 </View>
-                <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Rating</Text>
-                <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                <Text
+                  style={[
+                    styles.cardRowLabel,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  Rating
+                </Text>
+                <Text
+                  style={[
+                    styles.cardRowValue,
+                    { color: colors.spotTextPrimary },
+                  ]}
+                >
                   {place.rating.toFixed(1)}
                 </Text>
               </View>
-              {(priceLabel || place.address) ? (
-                <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+              {priceLabel || place.address ? (
+                <View
+                  style={[
+                    styles.cardDivider,
+                    { backgroundColor: colors.spotDivider },
+                  ]}
+                />
               ) : null}
             </>
           ) : null}
@@ -122,33 +170,87 @@ export function SpotDetailScreen({ route, navigation }: Props) {
           {priceLabel ? (
             <>
               <View style={styles.cardRow}>
-                <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-                  <Ionicons name="cash-outline" size={15} color={colors.spotEmerald} />
+                <View
+                  style={[
+                    styles.iconWrap,
+                    { backgroundColor: `${colors.spotEmerald}15` },
+                  ]}
+                >
+                  <Ionicons
+                    name="cash-outline"
+                    size={15}
+                    color={colors.spotEmerald}
+                  />
                 </View>
-                <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Price</Text>
-                <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                <Text
+                  style={[
+                    styles.cardRowLabel,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  Price
+                </Text>
+                <Text
+                  style={[
+                    styles.cardRowValue,
+                    { color: colors.spotTextPrimary },
+                  ]}
+                >
                   {priceLabel}
                 </Text>
               </View>
               {place.address ? (
-                <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+                <View
+                  style={[
+                    styles.cardDivider,
+                    { backgroundColor: colors.spotDivider },
+                  ]}
+                />
               ) : null}
             </>
           ) : null}
 
           {place.address ? (
-            <TouchableOpacity style={styles.cardRow} onPress={openInMaps} activeOpacity={0.6}>
-              <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-                <Ionicons name="location-outline" size={15} color={colors.spotEmerald} />
+            <TouchableOpacity
+              style={styles.cardRow}
+              onPress={openInMaps}
+              activeOpacity={0.6}
+            >
+              <View
+                style={[
+                  styles.iconWrap,
+                  { backgroundColor: `${colors.spotEmerald}15` },
+                ]}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={15}
+                  color={colors.spotEmerald}
+                />
               </View>
-              <Text style={[styles.cardRowValue, { color: colors.spotEmerald, flex: 1 }]} numberOfLines={2}>
+              <Text
+                style={[
+                  styles.cardRowValue,
+                  { color: colors.spotEmerald, flex: 1 },
+                ]}
+                numberOfLines={2}
+              >
                 {place.address}
               </Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} />
+              <Ionicons
+                name="chevron-forward"
+                size={14}
+                color={colors.spotEmerald}
+              />
             </TouchableOpacity>
           ) : null}
 
-          <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+          <View
+            style={[
+              styles.cardDivider,
+              { backgroundColor: colors.spotDivider },
+            ]}
+          />
 
           <TouchableOpacity
             style={styles.cardRow}
@@ -156,19 +258,48 @@ export function SpotDetailScreen({ route, navigation }: Props) {
             activeOpacity={place.phone_number ? 0.6 : 1}
             disabled={!place.phone_number}
           >
-            <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-              <Ionicons name="call-outline" size={15} color={colors.spotEmerald} />
+            <View
+              style={[
+                styles.iconWrap,
+                { backgroundColor: `${colors.spotEmerald}15` },
+              ]}
+            >
+              <Ionicons
+                name="call-outline"
+                size={15}
+                color={colors.spotEmerald}
+              />
             </View>
             <Text
-              style={[styles.cardRowValue, { flex: 1, color: place.phone_number ? colors.spotEmerald : colors.spotTextSecondary }]}
+              style={[
+                styles.cardRowValue,
+                {
+                  flex: 1,
+                  color: place.phone_number
+                    ? colors.spotEmerald
+                    : colors.spotTextSecondary,
+                  textAlign: place.phone_number ? "right" : "left",
+                },
+              ]}
               numberOfLines={1}
             >
-              {place.phone_number ?? '—'}
+              {place.phone_number ?? "—"}
             </Text>
-            {place.phone_number ? <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} /> : null}
+            {place.phone_number ? (
+              <Ionicons
+                name="chevron-forward"
+                size={14}
+                color={colors.spotEmerald}
+              />
+            ) : null}
           </TouchableOpacity>
 
-          <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+          <View
+            style={[
+              styles.cardDivider,
+              { backgroundColor: colors.spotDivider },
+            ]}
+          />
 
           <TouchableOpacity
             style={styles.cardRow}
@@ -176,53 +307,209 @@ export function SpotDetailScreen({ route, navigation }: Props) {
             activeOpacity={place.website ? 0.6 : 1}
             disabled={!place.website}
           >
-            <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-              <Ionicons name="globe-outline" size={15} color={colors.spotEmerald} />
+            <View
+              style={[
+                styles.iconWrap,
+                { backgroundColor: `${colors.spotEmerald}15` },
+              ]}
+            >
+              <Ionicons
+                name="globe-outline"
+                size={15}
+                color={colors.spotEmerald}
+              />
             </View>
             <Text
-              style={[styles.cardRowValue, { flex: 1, color: place.website ? colors.spotEmerald : colors.spotTextSecondary }]}
+              style={[
+                styles.cardRowValue,
+                {
+                  flex: 1,
+                  color: place.website
+                    ? colors.spotEmerald
+                    : colors.spotTextSecondary,
+                  textAlign: place.website ? "right" : "left",
+                },
+              ]}
               numberOfLines={1}
             >
-              {place.website ? place.website.replace(/^https?:\/\//, '').replace(/\/$/, '') : '—'}
+              {place.website
+                ? place.website.replace(/^https?:\/\//, "").replace(/\/$/, "")
+                : "—"}
             </Text>
-            {place.website ? <Ionicons name="chevron-forward" size={14} color={colors.spotEmerald} /> : null}
+            {place.website ? (
+              <Ionicons
+                name="chevron-forward"
+                size={14}
+                color={colors.spotEmerald}
+              />
+            ) : null}
           </TouchableOpacity>
+
+          <View
+            style={[
+              styles.cardDivider,
+              { backgroundColor: colors.spotDivider },
+            ]}
+          />
+
+          <View style={styles.cardRow}>
+            <View
+              style={[
+                styles.iconWrap,
+                { backgroundColor: `${colors.spotEmerald}15` },
+              ]}
+            >
+              <Ionicons
+                name="time-outline"
+                size={15}
+                color={colors.spotEmerald}
+              />
+            </View>
+            {place.opening_hours ? (
+              <View style={{ flex: 1 }}>
+                {place.opening_hours.split("\n").map((line, i) => {
+                  const [day, ...rest] = line.split(": ");
+                  const hours = rest.join(": ");
+                  return (
+                    <View key={i} style={styles.hoursRow}>
+                      <Text
+                        style={[
+                          styles.hoursDay,
+                          { color: colors.spotTextPrimary },
+                        ]}
+                      >
+                        {day}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.hoursTime,
+                          { color: colors.spotTextPrimary },
+                        ]}
+                      >
+                        {hours}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text
+                style={[
+                  styles.cardRowValue,
+                  {
+                    flex: 1,
+                    color: colors.spotTextSecondary,
+                    textAlign: "left",
+                  },
+                ]}
+              >
+                {"—"}
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* Note card */}
-        <Text style={[styles.sectionLabel, { color: colors.spotTextSecondary }]}>YOUR NOTE</Text>
-        <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
-          <Text style={[
-            styles.noteText,
-            { color: place.note_text ? colors.spotTextPrimary : colors.spotTextSecondary,
-              fontStyle: place.note_text ? 'normal' : 'italic' }
-          ]}>
-            {place.note_text || 'No note added yet'}
+        <Text
+          style={[styles.sectionLabel, { color: colors.spotTextSecondary }]}
+        >
+          YOUR NOTE
+        </Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.spotCardBackground,
+              borderColor: colors.spotDivider,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.noteText,
+              {
+                color: place.note_text
+                  ? colors.spotTextPrimary
+                  : colors.spotTextSecondary,
+                fontStyle: place.note_text ? "normal" : "italic",
+              },
+            ]}
+          >
+            {place.note_text || "No note added yet"}
           </Text>
         </View>
 
         {/* Footer meta */}
-        <View style={[styles.card, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.spotCardBackground,
+              borderColor: colors.spotDivider,
+            },
+          ]}
+        >
           {place.date_visited ? (
             <>
               <View style={styles.cardRow}>
-                <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-                  <Ionicons name="calendar-outline" size={15} color={colors.spotEmerald} />
+                <View
+                  style={[
+                    styles.iconWrap,
+                    { backgroundColor: `${colors.spotEmerald}15` },
+                  ]}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={15}
+                    color={colors.spotEmerald}
+                  />
                 </View>
-                <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Visited</Text>
-                <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+                <Text
+                  style={[
+                    styles.cardRowLabel,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  Visited
+                </Text>
+                <Text
+                  style={[
+                    styles.cardRowValue,
+                    { color: colors.spotTextPrimary },
+                  ]}
+                >
                   {relativeDate(place.date_visited)}
                 </Text>
               </View>
-              <View style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]} />
+              <View
+                style={[
+                  styles.cardDivider,
+                  { backgroundColor: colors.spotDivider },
+                ]}
+              />
             </>
           ) : null}
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: `${colors.spotEmerald}15` }]}>
-              <Ionicons name="bookmark-outline" size={15} color={colors.spotEmerald} />
+            <View
+              style={[
+                styles.iconWrap,
+                { backgroundColor: `${colors.spotEmerald}15` },
+              ]}
+            >
+              <Ionicons
+                name="bookmark-outline"
+                size={15}
+                color={colors.spotEmerald}
+              />
             </View>
-            <Text style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}>Saved</Text>
-            <Text style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}>
+            <Text
+              style={[styles.cardRowLabel, { color: colors.spotTextSecondary }]}
+            >
+              Saved
+            </Text>
+            <Text
+              style={[styles.cardRowValue, { color: colors.spotTextPrimary }]}
+            >
               {relativeDate(place.saved_at)}
             </Text>
           </View>
@@ -237,8 +524,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 8,
     paddingBottom: 8,
   },
@@ -254,8 +541,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   badge: {
@@ -265,7 +552,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...SpotTypography.caption,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   cuisine: {
     ...SpotTypography.subheadline,
@@ -273,16 +560,16 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 13,
     gap: 12,
@@ -295,8 +582,8 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   cardRowLabel: {
     ...SpotTypography.subheadline,
@@ -304,12 +591,12 @@ const styles = StyleSheet.create({
   },
   cardRowValue: {
     ...SpotTypography.subheadline,
-    textAlign: 'right',
+    textAlign: "right",
     flexShrink: 1,
   },
   sectionLabel: {
     ...SpotTypography.caption,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: 0.6,
     marginTop: 4,
     marginLeft: 4,
@@ -318,5 +605,21 @@ const styles = StyleSheet.create({
     ...SpotTypography.body,
     lineHeight: 24,
     padding: 14,
+  },
+  hoursRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 1,
+  },
+  hoursDay: {
+    ...SpotTypography.subheadline,
+    lineHeight: 20,
+    width: 90,
+  },
+  hoursTime: {
+    ...SpotTypography.subheadline,
+    lineHeight: 20,
+    textAlign: "right",
+    flex: 1,
   },
 });

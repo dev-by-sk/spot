@@ -90,6 +90,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceCacheDTO> {
     last_refreshed: data.lastRefreshed ?? data.last_refreshed ?? new Date().toISOString(),
     website: data.website ?? data.websiteUri ?? null,
     phone_number: data.phoneNumber ?? data.formattedPhoneNumber ?? data.nationalPhoneNumber ?? data.internationalPhoneNumber ?? null,
+    opening_hours: Array.isArray(data.openingHours) ? data.openingHours.join('\n') : null,
   };
 }
 

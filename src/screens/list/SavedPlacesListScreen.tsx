@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -15,33 +21,41 @@ import {
   LayoutAnimation,
   UIManager,
   Platform,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Swipeable } from 'react-native-gesture-handler';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ListStackParamList, MainTabParamList } from '../../navigation/types';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
-import * as Haptics from 'expo-haptics';
-import { usePlaces } from '../../hooks/usePlaces';
-import { useAuth } from '../../hooks/useAuth';
-import { PlaceCard } from '../../components/PlaceCard';
-import { FilterBar } from '../../components/FilterBar';
-import { FilterSheet } from '../../components/FilterSheet';
-import { EditNoteModal } from './EditNoteModal';
-import { useSpotColors, spotEmerald } from '../../theme/colors';
-import { SpotTypography } from '../../theme/typography';
-import type { SavedPlaceLocal } from '../../types';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Swipeable } from "react-native-gesture-handler";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type {
+  ListStackParamList,
+  MainTabParamList,
+} from "../../navigation/types";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
+import { usePlaces } from "../../hooks/usePlaces";
+import { useAuth } from "../../hooks/useAuth";
+import { PlaceCard } from "../../components/PlaceCard";
+import { FilterBar } from "../../components/FilterBar";
+import { FilterSheet } from "../../components/FilterSheet";
+import { EditNoteModal } from "./EditNoteModal";
+import { useSpotColors, spotEmerald } from "../../theme/colors";
+import { SpotTypography } from "../../theme/typography";
+import type { SavedPlaceLocal } from "../../types";
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 export function SavedPlacesListScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<ListStackParamList>>();
-  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<ListStackParamList>>();
+  const tabNavigation =
+    useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const {
     savedPlaces,
     isLoadingPlaces,
@@ -60,7 +74,9 @@ export function SavedPlacesListScreen() {
   const openSwipeableRef = useRef<Swipeable | null>(null);
   const listSearchInputRef = useRef<TextInput>(null);
 
-  const [editingPlace, setEditingPlace] = useState<SavedPlaceLocal | null>(null);
+  const [editingPlace, setEditingPlace] = useState<SavedPlaceLocal | null>(
+    null,
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
@@ -80,7 +96,10 @@ export function SavedPlacesListScreen() {
         }
       }
       if (added.length > 0) {
-        setTimeout(() => added.forEach((id) => newIdsRef.current.delete(id)), 800);
+        setTimeout(
+          () => added.forEach((id) => newIdsRef.current.delete(id)),
+          800,
+        );
       }
     }
     prevIdsRef.current = currentIds;
@@ -88,8 +107,11 @@ export function SavedPlacesListScreen() {
 
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [listSearchQuery, setListSearchQuery] = useState('');
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [listSearchQuery, setListSearchQuery] = useState("");
 
   useEffect(() => {
     if (currentUserId && isFocused) {
@@ -103,15 +125,20 @@ export function SavedPlacesListScreen() {
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
+      if (status === "granted") {
         const loc = await Location.getCurrentPositionAsync({});
-        setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        setUserLocation({
+          lat: loc.coords.latitude,
+          lng: loc.coords.longitude,
+        });
       }
     })();
   }, []);
 
   const availableCuisines = useMemo(() => {
-    const cuisines = savedPlaces.map((p) => p.cuisine).filter((c): c is string => !!c && c.length > 0);
+    const cuisines = savedPlaces
+      .map((p) => p.cuisine)
+      .filter((c): c is string => !!c && c.length > 0);
     return [...new Set(cuisines)].sort();
   }, [savedPlaces]);
 
@@ -121,11 +148,12 @@ export function SavedPlacesListScreen() {
     // Text search across name, note, address, cuisine
     const q = listSearchQuery.trim().toLowerCase();
     if (q.length > 0) {
-      result = result.filter((p) =>
-        (p.name ?? '').toLowerCase().includes(q) ||
-        (p.note_text ?? '').toLowerCase().includes(q) ||
-        (p.address ?? '').toLowerCase().includes(q) ||
-        (p.cuisine ?? '').toLowerCase().includes(q),
+      result = result.filter(
+        (p) =>
+          (p.name ?? "").toLowerCase().includes(q) ||
+          (p.note_text ?? "").toLowerCase().includes(q) ||
+          (p.address ?? "").toLowerCase().includes(q) ||
+          (p.cuisine ?? "").toLowerCase().includes(q),
       );
     }
 
@@ -138,7 +166,12 @@ export function SavedPlacesListScreen() {
     if (selectedDistance !== null && userLocation) {
       result = result.filter((p) => {
         if (p.lat == null || p.lng == null) return true;
-        const distKm = getDistanceKm(userLocation.lat, userLocation.lng, p.lat, p.lng);
+        const distKm = getDistanceKm(
+          userLocation.lat,
+          userLocation.lng,
+          p.lat,
+          p.lng,
+        );
         return distKm <= selectedDistance;
       });
     }
@@ -149,9 +182,17 @@ export function SavedPlacesListScreen() {
     }
 
     return result;
-  }, [savedPlaces, listSearchQuery, selectedFilter, selectedDistance, selectedCuisine, userLocation]);
+  }, [
+    savedPlaces,
+    listSearchQuery,
+    selectedFilter,
+    selectedDistance,
+    selectedCuisine,
+    userLocation,
+  ]);
 
-  const hasAdvancedFilters = selectedDistance !== null || selectedCuisine !== null;
+  const hasAdvancedFilters =
+    selectedDistance !== null || selectedCuisine !== null;
 
   const handleRefresh = useCallback(async () => {
     if (!currentUserId) return;
@@ -176,24 +217,21 @@ export function SavedPlacesListScreen() {
     [deletePlaceById],
   );
 
-  const handleDelete = useCallback(
-    (place: SavedPlaceLocal) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert('Delete spot', `Remove ${place.name ?? 'this spot'}?`, [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => openSwipeableRef.current?.close(),
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => setDeletingIds((prev) => new Set([...prev, place.id])),
-        },
-      ]);
-    },
-    [],
-  );
+  const handleDelete = useCallback((place: SavedPlaceLocal) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert("Delete spot", `Remove ${place.name ?? "this spot"}?`, [
+      {
+        text: "Cancel",
+        style: "cancel",
+        onPress: () => openSwipeableRef.current?.close(),
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => setDeletingIds((prev) => new Set([...prev, place.id])),
+      },
+    ]);
+  }, []);
 
   const handleEditNote = useCallback((place: SavedPlaceLocal) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -203,7 +241,12 @@ export function SavedPlacesListScreen() {
   const handleSaveNote = useCallback(
     async (note: string, dateVisited?: string | null) => {
       if (!editingPlace) return;
-      await updateNote(editingPlace.id, note, editingPlace.name ?? '', dateVisited);
+      await updateNote(
+        editingPlace.id,
+        note,
+        editingPlace.name ?? "",
+        dateVisited,
+      );
       setEditingPlace(null);
       openSwipeableRef.current?.close();
     },
@@ -211,7 +254,10 @@ export function SavedPlacesListScreen() {
   );
 
   const renderRightActions = useCallback(
-    (place: SavedPlaceLocal, progress: Animated.AnimatedInterpolation<number>) => {
+    (
+      place: SavedPlaceLocal,
+      progress: Animated.AnimatedInterpolation<number>,
+    ) => {
       const opacity = progress.interpolate({
         inputRange: [0, 0.5, 1],
         outputRange: [0, 0, 1],
@@ -222,7 +268,10 @@ export function SavedPlacesListScreen() {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => handleEditNote(place)}
-            style={[styles.swipeAction, { backgroundColor: colors.spotEmerald }]}
+            style={[
+              styles.swipeAction,
+              { backgroundColor: colors.spotEmerald },
+            ]}
           >
             <Ionicons name="pencil" size={20} color="#FFFFFF" />
           </TouchableOpacity>
@@ -257,24 +306,32 @@ export function SavedPlacesListScreen() {
           id={item.id}
           isNew={isNew}
           shouldExit={shouldExit}
-          onExitAnimationComplete={() => handleExitAnimationComplete(item.id, item.name ?? '')}
+          onExitAnimationComplete={() =>
+            handleExitAnimationComplete(item.id, item.name ?? "")
+          }
         >
           <Swipeable
-            ref={(ref) => { swipeRef = ref; }}
-            renderRightActions={(_progress) => renderRightActions(item, _progress)}
+            ref={(ref) => {
+              swipeRef = ref;
+            }}
+            renderRightActions={(_progress) =>
+              renderRightActions(item, _progress)
+            }
             onSwipeableWillOpen={() => {
               swiping = true;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
             onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
-            onSwipeableClose={() => { swiping = false; }}
+            onSwipeableClose={() => {
+              swiping = false;
+            }}
             overshootRight={false}
           >
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
                 if (!swiping) {
-                  navigation.navigate('PlaceDetail', { place: item });
+                  navigation.navigate("PlaceDetail", { place: item });
                 }
               }}
               style={styles.cardContainer}
@@ -285,12 +342,23 @@ export function SavedPlacesListScreen() {
         </AnimatedListItem>
       );
     },
-    [deletingIds, handleExitAnimationComplete, renderRightActions, handleSwipeOpen, navigation],
+    [
+      deletingIds,
+      handleExitAnimationComplete,
+      renderRightActions,
+      handleSwipeOpen,
+      navigation,
+    ],
   );
 
   if (isLoadingPlaces && savedPlaces.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
+      <View
+        style={[
+          styles.emptyContainer,
+          { backgroundColor: colors.spotBackground, paddingTop: insets.top },
+        ]}
+      >
         <ActivityIndicator color={colors.spotEmerald} />
       </View>
     );
@@ -298,19 +366,36 @@ export function SavedPlacesListScreen() {
 
   if (savedPlaces.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
-        <View style={[styles.emptyIconWrap, { backgroundColor: `${colors.spotEmerald}18` }]}>
-          <Ionicons name="location-outline" size={44} color={colors.spotEmerald} />
+      <View
+        style={[
+          styles.emptyContainer,
+          { backgroundColor: colors.spotBackground, paddingTop: insets.top },
+        ]}
+      >
+        <View
+          style={[
+            styles.emptyIconWrap,
+            { backgroundColor: `${colors.spotEmerald}18` },
+          ]}
+        >
+          <Ionicons
+            name="location-outline"
+            size={44}
+            color={colors.spotEmerald}
+          />
         </View>
         <Text style={[styles.emptyTitle, { color: colors.spotTextPrimary }]}>
           No spots saved yet
         </Text>
-        <Text style={[styles.emptySubtitle, { color: colors.spotTextSecondary }]}>
-          Search for a place or share a link from{'\n'}TikTok or Instagram to get started
+        <Text
+          style={[styles.emptySubtitle, { color: colors.spotTextSecondary }]}
+        >
+          Search for a place or share a link from{"\n"}TikTok or Instagram to
+          get started
         </Text>
         <TouchableOpacity
           style={[styles.emptyButton, { backgroundColor: colors.spotEmerald }]}
-          onPress={() => tabNavigation.navigate('Search')}
+          onPress={() => tabNavigation.navigate("Search")}
           activeOpacity={0.8}
         >
           <Text style={styles.emptyButtonText}>Find a spot</Text>
@@ -321,20 +406,30 @@ export function SavedPlacesListScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.spotBackground, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.spotBackground, paddingTop: insets.top },
+      ]}
+    >
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={[styles.screenTitle, { color: colors.spotTextPrimary }]}>
           My spots
         </Text>
-        <Text style={[styles.screenTitleCount, { color: colors.spotTextSecondary }]}>
+        <Text
+          style={[styles.screenTitleCount, { color: colors.spotTextSecondary }]}
+        >
           {filteredPlaces.length}
         </Text>
       </View>
 
       {/* Search bar */}
       <Pressable
-        style={[styles.listSearchBar, { backgroundColor: colors.spotSearchBar }]}
+        style={[
+          styles.listSearchBar,
+          { backgroundColor: colors.spotSearchBar },
+        ]}
         onPress={() => listSearchInputRef.current?.focus()}
       >
         <Ionicons name="search" size={16} color={colors.spotTextSecondary} />
@@ -353,21 +448,31 @@ export function SavedPlacesListScreen() {
           returnKeyType="search"
         />
         {listSearchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setListSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close-circle" size={16} color={colors.spotTextSecondary} />
+          <TouchableOpacity
+            onPress={() => setListSearchQuery("")}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="close-circle"
+              size={16}
+              color={colors.spotTextSecondary}
+            />
           </TouchableOpacity>
         )}
       </Pressable>
 
       {/* Filter row */}
       <View style={styles.filterRow}>
-        <FilterBar selectedFilter={selectedFilter} onFilterChange={setSelectedFilter} />
+        <FilterBar
+          selectedFilter={selectedFilter}
+          onFilterChange={setSelectedFilter}
+        />
         <TouchableOpacity
           onPress={() => setShowFilterSheet(true)}
           style={styles.filterIconButton}
         >
           <Ionicons
-            name={hasAdvancedFilters ? 'options' : 'options-outline'}
+            name={hasAdvancedFilters ? "options" : "options-outline"}
             size={22}
             color={hasAdvancedFilters ? spotEmerald : colors.spotTextSecondary}
           />
@@ -378,27 +483,60 @@ export function SavedPlacesListScreen() {
         data={filteredPlaces}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={[{ flexGrow: 1 }, filteredPlaces.length > 0 && styles.listContent]}
+        contentContainerStyle={[
+          { flexGrow: 1 },
+          filteredPlaces.length > 0 && styles.listContent,
+        ]}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           listSearchQuery.trim().length > 0 ? (
             <View style={styles.searchEmptyContainer}>
-              <Ionicons name="search-outline" size={36} color={colors.spotTextSecondary} style={{ opacity: 0.4 }} />
-              <Text style={[styles.searchEmptyTitle, { color: colors.spotTextPrimary }]}>
+              <Ionicons
+                name="search-outline"
+                size={36}
+                color={colors.spotTextSecondary}
+                style={{ opacity: 0.4 }}
+              />
+              <Text
+                style={[
+                  styles.searchEmptyTitle,
+                  { color: colors.spotTextPrimary },
+                ]}
+              >
                 No spots found
               </Text>
-              <Text style={[styles.searchEmptySubtitle, { color: colors.spotTextSecondary }]}>
+              <Text
+                style={[
+                  styles.searchEmptySubtitle,
+                  { color: colors.spotTextSecondary },
+                ]}
+              >
                 No results for "{listSearchQuery}"
               </Text>
             </View>
-          ) : (selectedFilter || hasAdvancedFilters) ? (
+          ) : selectedFilter || hasAdvancedFilters ? (
             <View style={styles.searchEmptyContainer}>
-              <Ionicons name="filter-outline" size={36} color={colors.spotTextSecondary} style={{ opacity: 0.4 }} />
-              <Text style={[styles.searchEmptyTitle, { color: colors.spotTextPrimary }]}>
+              <Ionicons
+                name="filter-outline"
+                size={36}
+                color={colors.spotTextSecondary}
+                style={{ opacity: 0.4 }}
+              />
+              <Text
+                style={[
+                  styles.searchEmptyTitle,
+                  { color: colors.spotTextPrimary },
+                ]}
+              >
                 No spots matched
               </Text>
-              <Text style={[styles.searchEmptySubtitle, { color: colors.spotTextSecondary }]}>
+              <Text
+                style={[
+                  styles.searchEmptySubtitle,
+                  { color: colors.spotTextSecondary },
+                ]}
+              >
                 Try adjusting or clearing your filters
               </Text>
             </View>
@@ -415,8 +553,8 @@ export function SavedPlacesListScreen() {
 
       <EditNoteModal
         visible={editingPlace !== null}
-        placeName={editingPlace?.name ?? ''}
-        initialNote={editingPlace?.note_text ?? ''}
+        placeName={editingPlace?.name ?? ""}
+        initialNote={editingPlace?.note_text ?? ""}
         initialDateVisited={editingPlace?.date_visited ?? null}
         onSave={handleSaveNote}
         onCancel={() => {
@@ -450,7 +588,12 @@ interface AnimatedListItemProps {
   children: React.ReactNode;
 }
 
-function AnimatedListItem({ isNew, shouldExit, onExitAnimationComplete, children }: AnimatedListItemProps) {
+function AnimatedListItem({
+  isNew,
+  shouldExit,
+  onExitAnimationComplete,
+  children,
+}: AnimatedListItemProps) {
   const opacity = useRef(new Animated.Value(isNew ? 0 : 1)).current;
   const translateY = useRef(new Animated.Value(isNew ? -14 : 0)).current;
   const translateX = useRef(new Animated.Value(0)).current;
@@ -458,11 +601,21 @@ function AnimatedListItem({ isNew, shouldExit, onExitAnimationComplete, children
   useEffect(() => {
     if (isNew) {
       Animated.parallel([
-        Animated.spring(opacity, { toValue: 1, useNativeDriver: true, tension: 90, friction: 13 }),
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 90, friction: 13 }),
+        Animated.spring(opacity, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 90,
+          friction: 13,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 90,
+          friction: 13,
+        }),
       ]).start();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -484,17 +637,24 @@ function AnimatedListItem({ isNew, shouldExit, onExitAnimationComplete, children
         if (finished) onExitAnimationComplete();
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldExit]);
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }, { translateX }] }}>
+    <Animated.View
+      style={{ opacity, transform: [{ translateY }, { translateX }] }}
+    >
       {children}
     </Animated.View>
   );
 }
 
-function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function getDistanceKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const R = 6371; // Earth's radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -514,8 +674,8 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 40,
     gap: 16,
   },
@@ -523,22 +683,22 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 8,
   },
   emptyTitle: {
     ...SpotTypography.title2,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptySubtitle: {
     ...SpotTypography.body,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 24,
   },
   emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     marginTop: 8,
     paddingHorizontal: 24,
@@ -547,11 +707,11 @@ const styles = StyleSheet.create({
   },
   emptyButtonText: {
     ...SpotTypography.headline,
-    color: '#fff',
+    color: "#fff",
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    flexDirection: "row",
+    alignItems: "baseline",
     gap: 8,
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -564,8 +724,8 @@ const styles = StyleSheet.create({
     ...SpotTypography.title2,
   },
   listSearchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginHorizontal: 16,
     marginTop: 10,
     paddingHorizontal: 12,
@@ -579,15 +739,15 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingTop: 12,
     paddingBottom: 12,
   },
   searchEmptyContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   searchEmptyTitle: {
@@ -607,18 +767,18 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
   swipeActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 6,
     marginRight: 16,
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   swipeAction: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     width: 64,
-    height: '100%',
+    height: "100%",
   },
 });
