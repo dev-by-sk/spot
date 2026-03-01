@@ -1,15 +1,15 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import * as SQLite from 'expo-sqlite';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import * as SQLite from "expo-sqlite";
 import {
   CREATE_PLACE_CACHE_TABLE,
   CREATE_SAVED_PLACES_TABLE,
   CREATE_SAVED_PLACES_USER_INDEX,
   CREATE_SAVED_PLACES_GOOGLE_INDEX,
   CREATE_PENDING_DELETIONS_TABLE,
-} from './schema';
-import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from '../types';
+} from "./schema";
+import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from "../types";
 
-const DB_NAME = 'spot.db';
+const DB_NAME = "spot.db";
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
@@ -26,7 +26,9 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
 // ── CRUD Functions ──
 
-export async function upsertLocalPlaceCache(cache: PlaceCacheDTO): Promise<void> {
+export async function upsertLocalPlaceCache(
+  cache: PlaceCacheDTO,
+): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO place_cache (google_place_id, name, address, lat, lng, rating, price_level, category, cuisine, last_refreshed)
@@ -56,7 +58,9 @@ export async function upsertLocalPlaceCache(cache: PlaceCacheDTO): Promise<void>
   );
 }
 
-export async function insertLocalSavedPlace(place: Omit<SavedPlaceDTO, 'place_cache'>): Promise<void> {
+export async function insertLocalSavedPlace(
+  place: Omit<SavedPlaceDTO, "place_cache">,
+): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT OR IGNORE INTO saved_places (id, user_id, google_place_id, note_text, date_visited, saved_at)
@@ -74,35 +78,51 @@ export async function insertLocalSavedPlace(place: Omit<SavedPlaceDTO, 'place_ca
 
 export async function deleteLocalSavedPlace(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync('DELETE FROM saved_places WHERE id = ?', [id]);
+  await db.runAsync("DELETE FROM saved_places WHERE id = ?", [id]);
 }
 
 export async function markPendingDeletion(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync('INSERT OR IGNORE INTO pending_deletions (id) VALUES (?)', [id]);
+  await db.runAsync("INSERT OR IGNORE INTO pending_deletions (id) VALUES (?)", [
+    id,
+  ]);
 }
 
 export async function clearPendingDeletion(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync('DELETE FROM pending_deletions WHERE id = ?', [id]);
+  await db.runAsync("DELETE FROM pending_deletions WHERE id = ?", [id]);
 }
 
 export async function fetchPendingDeletionIds(): Promise<string[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<{ id: string }>('SELECT id FROM pending_deletions');
+  const rows = await db.getAllAsync<{ id: string }>(
+    "SELECT id FROM pending_deletions",
+  );
   return rows.map((r) => r.id);
 }
 
-export async function updateLocalSavedPlaceNote(id: string, note: string, dateVisited?: string | null): Promise<void> {
+export async function updateLocalSavedPlaceNote(
+  id: string,
+  note: string,
+  dateVisited?: string | null,
+): Promise<void> {
   const db = await getDatabase();
   if (dateVisited !== undefined) {
-    await db.runAsync('UPDATE saved_places SET note_text = ?, date_visited = ? WHERE id = ?', [note, dateVisited, id]);
+    await db.runAsync(
+      "UPDATE saved_places SET note_text = ?, date_visited = ? WHERE id = ?",
+      [note, dateVisited, id],
+    );
   } else {
-    await db.runAsync('UPDATE saved_places SET note_text = ? WHERE id = ?', [note, id]);
+    await db.runAsync("UPDATE saved_places SET note_text = ? WHERE id = ?", [
+      note,
+      id,
+    ]);
   }
 }
 
-export async function fetchLocalSavedPlaces(userId: string): Promise<SavedPlaceLocal[]> {
+export async function fetchLocalSavedPlaces(
+  userId: string,
+): Promise<SavedPlaceLocal[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<SavedPlaceLocal>(
     `SELECT
@@ -117,10 +137,13 @@ export async function fetchLocalSavedPlaces(userId: string): Promise<SavedPlaceL
   return rows;
 }
 
-export async function isDuplicatePlace(userId: string, googlePlaceId: string): Promise<boolean> {
+export async function isDuplicatePlace(
+  userId: string,
+  googlePlaceId: string,
+): Promise<boolean> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ cnt: number }>(
-    'SELECT COUNT(*) as cnt FROM saved_places WHERE user_id = ? AND google_place_id = ?',
+    "SELECT COUNT(*) as cnt FROM saved_places WHERE user_id = ? AND google_place_id = ?",
     [userId, googlePlaceId],
   );
   return (row?.cnt ?? 0) > 0;
@@ -129,7 +152,7 @@ export async function isDuplicatePlace(userId: string, googlePlaceId: string): P
 export async function fetchLocalPlaceIds(userId: string): Promise<string[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ id: string }>(
-    'SELECT id FROM saved_places WHERE user_id = ?',
+    "SELECT id FROM saved_places WHERE user_id = ?",
     [userId],
   );
   return rows.map((r) => r.id);
@@ -138,7 +161,10 @@ export async function fetchLocalPlaceIds(userId: string): Promise<string[]> {
 export async function getLocalSavedPlaceForSync(
   userId: string,
   placeId: string,
-): Promise<(Omit<SavedPlaceDTO, 'place_cache'> & { cache_google_place_id?: string }) | null> {
+): Promise<
+  | (Omit<SavedPlaceDTO, "place_cache"> & { cache_google_place_id?: string })
+  | null
+> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{
     id: string;
@@ -147,14 +173,19 @@ export async function getLocalSavedPlaceForSync(
     note_text: string;
     date_visited: string | null;
     saved_at: string;
-  }>('SELECT * FROM saved_places WHERE id = ? AND user_id = ?', [placeId, userId]);
+  }>("SELECT * FROM saved_places WHERE id = ? AND user_id = ?", [
+    placeId,
+    userId,
+  ]);
   return row ?? null;
 }
 
-export async function getLocalPlaceCacheForSync(googlePlaceId: string): Promise<PlaceCacheDTO | null> {
+export async function getLocalPlaceCacheForSync(
+  googlePlaceId: string,
+): Promise<PlaceCacheDTO | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<PlaceCacheDTO>(
-    'SELECT * FROM place_cache WHERE google_place_id = ?',
+    "SELECT * FROM place_cache WHERE google_place_id = ?",
     [googlePlaceId],
   );
   return row ?? null;
@@ -162,7 +193,9 @@ export async function getLocalPlaceCacheForSync(googlePlaceId: string): Promise<
 
 // ── Update local saved place (for server-wins merge) ──
 
-export async function upsertLocalSavedPlace(place: Omit<SavedPlaceDTO, 'place_cache'>): Promise<void> {
+export async function upsertLocalSavedPlace(
+  place: Omit<SavedPlaceDTO, "place_cache">,
+): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO saved_places (id, user_id, google_place_id, note_text, date_visited, saved_at)
@@ -200,7 +233,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     getDatabase()
       .then(() => setIsReady(true))
       .catch((error) => {
-        console.error('[Database] Initialization failed:', error);
+        console.error("[Database] Initialization failed:", error);
         setIsReady(true); // Allow app to render even if DB fails
       });
   }, []);

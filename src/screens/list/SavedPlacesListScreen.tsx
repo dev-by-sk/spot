@@ -158,6 +158,8 @@ export function SavedPlacesListScreen() {
     setIsRefreshing(true);
     try {
       await syncPlaces(currentUserId);
+    } catch {
+      // Toast already shown by PlacesContext
     } finally {
       setIsRefreshing(false);
     }
