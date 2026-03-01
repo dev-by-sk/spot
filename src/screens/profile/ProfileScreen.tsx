@@ -1,36 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  Switch,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
   StyleSheet,
   ScrollView,
   Linking,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../hooks/useAuth';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { useSpotColors } from '../../theme/colors';
-import { SpotTypography } from '../../theme/typography';
-import { useTheme, type ThemePreference } from '../../context/ThemeContext';
-import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../config/constants';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../hooks/useAuth";
+import * as SupabaseService from "../../services/supabaseService";
+import { useSpotColors } from "../../theme/colors";
+import { SpotTypography } from "../../theme/typography";
+import { spotEmerald } from "../../theme/colors";
+import {
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+} from "../../config/constants";
+import { useTheme, type ThemePreference } from "../../context/ThemeContext";
 
-const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] = [
-  { value: 'light', icon: 'sunny-outline',  label: 'Light' },
-  { value: 'system', icon: 'phone-portrait-outline', label: 'Auto'  },
-  { value: 'dark',  icon: 'moon-outline',   label: 'Dark'  },
-];
+const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] =
+  [
+    { value: "light", icon: "sunny-outline", label: "Light" },
+    { value: "system", icon: "phone-portrait-outline", label: "Auto" },
+    { value: "dark", icon: "moon-outline", label: "Dark" },
+  ];
 
 export function ProfileScreen() {
   const { userEmail, signOut, deleteAccount } = useAuth();
   const colors = useSpotColors();
   const { preference, setPreference } = useTheme();
-  const isOnline = useNetworkStatus();
+  const [isPrivateProfile, setIsPrivateProfile] = useState(true);
+  const [isTogglingPrivacy, setIsTogglingPrivacy] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
+  const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const profile = await SupabaseService.getUserProfile();
+        if (profile) {
+          setIsPrivateProfile(profile.profile_private);
+        }
+      } catch (error) {
+        console.warn("[Profile] Failed to load profile:", error);
+      }
+    })();
+  }, []);
+
+  const handlePrivacyToggle = async (value: boolean) => {
+    if (isTogglingPrivacy) return;
+    setIsPrivateProfile(value);
+    setIsTogglingPrivacy(true);
+    try {
+      await SupabaseService.updateProfilePrivacy(value);
+    } catch {
+      setIsPrivateProfile(!value);
+    } finally {
+      setIsTogglingPrivacy(false);
+    }
+  };
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -42,18 +75,14 @@ export function ProfileScreen() {
   };
 
   const handleDeleteAccount = () => {
-    if (!isOnline) {
-      Alert.alert('No connection', 'You need to be online to delete your account.');
-      return;
-    }
     Alert.alert(
-      'Delete Account',
-      'Your account will be scheduled for deletion. You have 30 days to sign back in to cancel this request.',
+      "Delete Account",
+      "Your account will be scheduled for deletion. You have 30 days to sign back in to cancel this request.",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: deleteAccount,
         },
       ],
@@ -68,24 +97,36 @@ export function ProfileScreen() {
       {/* User info section */}
       <View style={styles.section}>
         <View style={styles.userRow}>
-          <View style={[styles.avatar, { backgroundColor: colors.spotEmerald }]}>
+          <View
+            style={[styles.avatar, { backgroundColor: colors.spotEmerald }]}
+          >
             <Text style={styles.avatarText}>{userInitial}</Text>
           </View>
           <Text
             style={[styles.email, { color: colors.spotTextPrimary }]}
             numberOfLines={1}
           >
-            {userEmail ?? 'User'}
+            {userEmail ?? "User"}
           </Text>
         </View>
       </View>
 
       {/* Appearance section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}>
+        <Text
+          style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}
+        >
           APPEARANCE
         </Text>
-        <View style={[styles.segmentedRow, { backgroundColor: colors.spotCardBackground, borderColor: colors.spotDivider }]}>
+        <View
+          style={[
+            styles.segmentedRow,
+            {
+              backgroundColor: colors.spotCardBackground,
+              borderColor: colors.spotDivider,
+            },
+          ]}
+        >
           {THEME_OPTIONS.map((opt) => {
             const active = preference === opt.value;
             return (
@@ -101,12 +142,14 @@ export function ProfileScreen() {
                 <Ionicons
                   name={opt.icon as any}
                   size={14}
-                  color={active ? '#FFFFFF' : colors.spotTextSecondary}
+                  color={active ? "#FFFFFF" : colors.spotTextSecondary}
                 />
-                <Text style={[
-                  styles.segmentLabel,
-                  { color: active ? '#FFFFFF' : colors.spotTextSecondary },
-                ]}>
+                <Text
+                  style={[
+                    styles.segmentLabel,
+                    { color: active ? "#FFFFFF" : colors.spotTextSecondary },
+                  ]}
+                >
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -115,9 +158,34 @@ export function ProfileScreen() {
         </View>
       </View>
 
+      {/* Privacy section */}
+      <View style={styles.section}>
+        <Text
+          style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}
+        >
+          PRIVACY
+        </Text>
+        <View style={[styles.row, { borderColor: colors.spotDivider }]}>
+          <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
+            Private Profile
+          </Text>
+          {isTogglingPrivacy ? (
+            <ActivityIndicator size="small" color={spotEmerald} />
+          ) : (
+            <Switch
+              value={isPrivateProfile}
+              onValueChange={handlePrivacyToggle}
+              trackColor={{ true: spotEmerald }}
+            />
+          )}
+        </View>
+      </View>
+
       {/* Account section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}>
+        <Text
+          style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}
+        >
           ACCOUNT
         </Text>
         <TouchableOpacity
@@ -132,7 +200,9 @@ export function ProfileScreen() {
 
       {/* Legal section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}>
+        <Text
+          style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}
+        >
           LEGAL
         </Text>
         <TouchableOpacity
@@ -142,7 +212,11 @@ export function ProfileScreen() {
           <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
             Privacy Policy
           </Text>
-          <Ionicons name="open-outline" size={16} color={colors.spotTextSecondary} />
+          <Ionicons
+            name="open-outline"
+            size={16}
+            color={colors.spotTextSecondary}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.row, { borderColor: colors.spotDivider }]}
@@ -151,7 +225,11 @@ export function ProfileScreen() {
           <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
             Terms of Service
           </Text>
-          <Ionicons name="open-outline" size={16} color={colors.spotTextSecondary} />
+          <Ionicons
+            name="open-outline"
+            size={16}
+            color={colors.spotTextSecondary}
+          />
         </TouchableOpacity>
       </View>
 
@@ -161,7 +239,13 @@ export function ProfileScreen() {
           onPress={handleSignOut}
           disabled={isSigningOut}
           activeOpacity={0.7}
-          style={[styles.logoutButton, { borderColor: colors.spotEmerald, opacity: isSigningOut ? 0.6 : 1 }]}
+          style={[
+            styles.logoutButton,
+            {
+              borderColor: colors.spotEmerald,
+              opacity: isSigningOut ? 0.6 : 1,
+            },
+          ]}
         >
           {isSigningOut ? (
             <ActivityIndicator size="small" color={colors.spotEmerald} />
@@ -193,8 +277,8 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     paddingVertical: 8,
   },
@@ -202,19 +286,19 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: {
     ...SpotTypography.title3,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   email: {
     ...SpotTypography.headline,
     flex: 1,
   },
   segmentedRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 3,
@@ -222,21 +306,21 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 5,
     paddingVertical: 8,
     borderRadius: 9,
   },
   segmentLabel: {
     ...SpotTypography.footnote,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
@@ -247,7 +331,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: 12,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   logoutText: {
     ...SpotTypography.headline,
