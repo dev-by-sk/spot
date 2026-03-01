@@ -12,6 +12,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { PlacesProvider } from './src/context/PlacesContext';
 import { ShareProvider } from './src/context/ShareContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { ToastProvider } from './src/context/ToastContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { analytics } from './src/services/analyticsService';
 
@@ -72,6 +73,7 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <ThemeProvider>
+            <ToastProvider>
             <ShareIntentProvider>
               <DatabaseProvider>
                 <AuthProvider>
@@ -83,6 +85,7 @@ export default function App() {
                 </AuthProvider>
               </DatabaseProvider>
             </ShareIntentProvider>
+            </ToastProvider>
           </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

@@ -6,7 +6,8 @@ import * as SupabaseService from '../services/supabaseService';
 import { supabase } from '../config/supabase';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { ERROR_AUTO_DISMISS_MS } from '../config/constants';
+
+import { useToast } from './ToastContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -14,7 +15,6 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   isSigningIn: boolean;
-  errorMessage: string | null;
   currentUserId: string | null;
   userEmail: string | null;
   checkSession: () => Promise<void>;
@@ -27,7 +27,6 @@ export const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   isLoading: true,
   isSigningIn: false,
-  errorMessage: null,
   currentUserId: null,
   userEmail: null,
   checkSession: async () => {},
@@ -38,25 +37,12 @@ export const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isOnline = useNetworkStatus();
+  const { showToast } = useToast();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  const setErrorWithAutoDismiss = useCallback((msg: string) => {
-    setErrorMessage(msg);
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    errorTimerRef.current = setTimeout(() => setErrorMessage(null), ERROR_AUTO_DISMISS_MS);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    };
-  }, []);
 
   const checkSession = useCallback(async () => {
     try {
@@ -140,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error || !data.url) {
         console.error('[Auth] signInWithOAuth failed:', error, 'url:', data?.url);
-        setErrorWithAutoDismiss('Failed to start Google sign in');
+        showToast({ text: 'Failed to start Google sign in.', type: 'error' });
         return;
       }
 
@@ -158,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const codeMatch = result.url.match(/[?&]code=([^&#]+)/);
       const authCode = codeMatch?.[1];
       if (!authCode) {
-        setErrorWithAutoDismiss('Sign in failed. Please try again.');
+        showToast({ text: 'Sign in failed. Please try again.', type: 'error' });
         return;
       }
 
@@ -167,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (sessionError || !sessionData.user) {
         console.error('[Auth] exchangeCodeForSession failed:', sessionError);
-        setErrorWithAutoDismiss('Sign in failed. Please try again.');
+        showToast({ text: 'Sign in failed. Please try again.', type: 'error' });
         return;
       }
 
@@ -179,11 +165,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       analytics.track(AnalyticsEvent.SignInCompleted, { provider: 'google' });
     } catch (error: any) {
       console.error('[Auth] signInWithGoogle threw:', error);
-      setErrorWithAutoDismiss('Sign in failed. Please try again.');
+      showToast({ text: 'Sign in failed. Please try again.', type: 'error', action: { label: 'Retry', onPress: () => signInWithGoogle() } });
     } finally {
       setIsSigningIn(false);
     }
-  }, [setErrorWithAutoDismiss]);
+  }, [showToast]);
 
   const handleSignOut = useCallback(async () => {
     if (isOnline) {
@@ -206,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     if (!isOnline) {
-      setErrorWithAutoDismiss('You need to be online to delete your account.');
+      showToast({ text: 'You need to be online to delete your account.', type: 'error' });
       return;
     }
     setIsLoading(true);
@@ -220,11 +206,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUserId(null);
       setUserEmail(null);
     } catch {
-      setErrorWithAutoDismiss('Failed to delete account. Please try again.');
+      showToast({ text: 'Failed to delete account. Please try again.', type: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, [isOnline, setErrorWithAutoDismiss]);
+  }, [isOnline, showToast]);
 
   return (
     <AuthContext.Provider
@@ -232,7 +218,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         isLoading,
         isSigningIn,
-        errorMessage,
         currentUserId,
         userEmail,
         checkSession,
