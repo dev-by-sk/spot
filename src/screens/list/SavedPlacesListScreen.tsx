@@ -21,6 +21,7 @@ import {
   LayoutAnimation,
   UIManager,
   Platform,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
@@ -199,6 +200,8 @@ export function SavedPlacesListScreen() {
     setIsRefreshing(true);
     try {
       await syncPlaces(currentUserId);
+    } catch {
+      // Toast already shown by PlacesContext
     } finally {
       setIsRefreshing(false);
     }
@@ -413,7 +416,7 @@ export function SavedPlacesListScreen() {
       ]}
     >
       {/* Header */}
-      <View style={styles.headerRow}>
+      <Pressable style={styles.headerRow} onPress={() => Keyboard.dismiss()}>
         <Text style={[styles.screenTitle, { color: colors.spotTextPrimary }]}>
           My spots
         </Text>
@@ -422,7 +425,7 @@ export function SavedPlacesListScreen() {
         >
           {filteredPlaces.length}
         </Text>
-      </View>
+      </Pressable>
 
       {/* Search bar */}
       <Pressable

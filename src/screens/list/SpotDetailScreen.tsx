@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -15,6 +16,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSpotColors } from "../../theme/colors";
 import { SpotTypography } from "../../theme/typography";
 import { relativeDate } from "../../utils/relativeDate";
+import { usePlaces } from "../../hooks/usePlaces";
 import type { ListStackParamList } from "../../navigation/types";
 
 type Props = NativeStackScreenProps<ListStackParamList, "PlaceDetail">;
@@ -23,6 +25,37 @@ export function SpotDetailScreen({ route, navigation }: Props) {
   const { place } = route.params;
   const colors = useSpotColors();
   const insets = useSafeAreaInsets();
+  const { updateNote } = usePlaces();
+
+  const scrollRef = useRef<ScrollView>(null);
+  const noteCardYRef = useRef(0);
+
+  const [noteText, setNoteText] = useState(place.note_text ?? '');
+  const savedNoteRef = useRef(place.note_text ?? '');
+  const noteTextRef = useRef(noteText);
+
+  const handleNoteChange = useCallback((text: string) => {
+    setNoteText(text);
+    noteTextRef.current = text;
+  }, []);
+
+  const handleNoteBlur = useCallback(async () => {
+    const trimmed = noteTextRef.current.trim();
+    if (trimmed === savedNoteRef.current) return;
+    savedNoteRef.current = trimmed;
+    await updateNote(place.id, trimmed, place.name ?? '', place.date_visited);
+  }, [updateNote, place.id, place.name, place.date_visited]);
+
+  // Save on unmount — covers back navigation before onBlur fires
+  useEffect(() => {
+    return () => {
+      const trimmed = noteTextRef.current.trim();
+      if (trimmed !== savedNoteRef.current) {
+        updateNote(place.id, trimmed, place.name ?? '', place.date_visited);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const priceLabel = place.price_level ? "$".repeat(place.price_level) : null;
   const todayName = [
@@ -103,7 +136,9 @@ export function SpotDetailScreen({ route, navigation }: Props) {
           styles.content,
           { paddingBottom: insets.bottom + 32 },
         ]}
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets
       >
         {/* Name */}
         <Text style={[styles.name, { color: colors.spotTextPrimary }]}>
@@ -474,20 +509,21 @@ export function SpotDetailScreen({ route, navigation }: Props) {
               borderColor: colors.spotDivider,
             },
           ]}
+          onLayout={(e) => { noteCardYRef.current = e.nativeEvent.layout.y; }}
         >
-          <Text
-            style={[
-              styles.noteText,
-              {
-                color: place.note_text
-                  ? colors.spotTextPrimary
-                  : colors.spotTextSecondary,
-                fontStyle: place.note_text ? "normal" : "italic",
-              },
-            ]}
-          >
-            {place.note_text || "No note added yet"}
-          </Text>
+          <TextInput
+            style={[styles.noteText, { color: colors.spotTextPrimary }]}
+            value={noteText}
+            onChangeText={handleNoteChange}
+            onBlur={handleNoteBlur}
+            onFocus={() => {
+              scrollRef.current?.scrollTo({ y: noteCardYRef.current, animated: true });
+            }}
+            placeholder="Add a note..."
+            placeholderTextColor={colors.spotTextSecondary}
+            multiline
+            scrollEnabled={false}
+          />
         </View>
 
         {/* Footer meta */}
@@ -656,6 +692,7 @@ const styles = StyleSheet.create({
     ...SpotTypography.body,
     lineHeight: 24,
     padding: 14,
+    textAlignVertical: 'top',
   },
   hoursRow: {
     flexDirection: "row",

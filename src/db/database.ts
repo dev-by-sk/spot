@@ -1,5 +1,20 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as SQLite from "expo-sqlite";
+import { useSpotColors } from "../theme/colors";
 import {
   CREATE_PLACE_CACHE_TABLE,
   CREATE_SAVED_PLACES_TABLE,
@@ -11,6 +26,7 @@ import {
   MIGRATE_PLACE_CACHE_ADD_OPENING_HOURS,
 } from "./schema";
 import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from "../types";
+import { SpotTypography } from "../theme/typography";
 
 const DB_NAME = "spot.db";
 
@@ -247,15 +263,75 @@ export function useDatabaseReady(): boolean {
 
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  const initDatabase = useCallback(async () => {
+    setInitError(null);
+    setRetrying(true);
+    try {
+      // Reset the cached instance so a fresh connection is attempted
+      dbInstance = null;
+      await getDatabase();
+      setIsReady(true);
+    } catch (error) {
+      console.error("[Database] Initialization failed:", error);
+      setInitError(
+        error instanceof Error ? error.message : "Unknown database error",
+      );
+    } finally {
+      setRetrying(false);
+    }
+  }, []);
 
   useEffect(() => {
-    getDatabase()
-      .then(() => setIsReady(true))
-      .catch((error) => {
-        console.error("[Database] Initialization failed:", error);
-        setIsReady(true); // Allow app to render even if DB fails
-      });
-  }, []);
+    initDatabase();
+  }, [initDatabase]);
+
+  const colors = useSpotColors();
+
+  if (initError) {
+    return React.createElement(
+      View,
+      { style: [dbErrorStyles.container, { backgroundColor: colors.spotBackground }] },
+      React.createElement(Ionicons, {
+        name: "warning-outline",
+        size: 48,
+        color: colors.spotTextSecondary,
+        style: dbErrorStyles.icon,
+      }),
+      React.createElement(
+        Text,
+        { style: [dbErrorStyles.title, { color: colors.spotTextPrimary }] },
+        "Something went wrong",
+      ),
+      React.createElement(
+        Text,
+        { style: [dbErrorStyles.message, { color: colors.spotTextSecondary }] },
+        "We couldn\u2019t load your data",
+      ),
+      React.createElement(
+        Text,
+        { style: [dbErrorStyles.submessage, { color: colors.spotTextSecondary }] },
+        "Tap below to try again",
+      ),
+      React.createElement(
+        TouchableOpacity,
+        {
+          style: [dbErrorStyles.button, { backgroundColor: colors.spotEmerald }],
+          onPress: initDatabase,
+          disabled: retrying,
+        },
+        retrying
+          ? React.createElement(ActivityIndicator, { color: "#FFFFFF" })
+          : React.createElement(
+              Text,
+              { style: dbErrorStyles.buttonText },
+              "Try Again",
+            ),
+      ),
+    );
+  }
 
   return React.createElement(
     DatabaseContext.Provider,
@@ -263,3 +339,40 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     children,
   );
 }
+
+const dbErrorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  icon: {
+    marginBottom: 16,
+  },
+  title: {
+    ...SpotTypography.title2,
+    marginBottom: 8,
+  },
+  message: {
+    ...SpotTypography.body,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  submessage: {
+    ...SpotTypography.callout,
+    textAlign: "center",
+    marginBottom: 28,
+  },
+  button: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minWidth: 120,
+    alignItems: "center",
+  },
+  buttonText: {
+    ...SpotTypography.headline,
+    color: "#FFFFFF",
+  },
+});

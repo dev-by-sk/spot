@@ -1,14 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Animated,
-  LayoutAnimation,
-  Platform,
-  UIManager,
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,45 +13,9 @@ import { useSpotColors } from '../../theme/colors';
 import { SpotTypography } from '../../theme/typography';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../config/constants';
 
-// Required on Android for LayoutAnimation
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 export function LoginScreen() {
-  const { signInWithGoogle, isSigningIn, errorMessage } = useAuth();
+  const { signInWithGoogle, isSigningIn } = useAuth();
   const colors = useSpotColors();
-
-  // Keep a local copy of the error so it remains visible during the fade-out
-  const [visibleError, setVisibleError] = useState<string | null>(null);
-  const errorOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (errorMessage) {
-      // Show: snap opacity to 0, then animate layout in + fade in
-      errorOpacity.setValue(0);
-      setVisibleError(errorMessage);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      Animated.timing(errorOpacity, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    } else if (visibleError) {
-      // Hide: fade out first, then animate layout collapse
-      Animated.timing(errorOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setVisibleError(null);
-        }
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [errorMessage]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
@@ -70,16 +30,6 @@ export function LoginScreen() {
       </View>
 
       <View style={styles.spacer} />
-
-      {/* Error message — sits above the button so it pushes it down */}
-      {visibleError && (
-        <Animated.View style={[styles.errorContainer, { opacity: errorOpacity }]}>
-          <Ionicons name="alert-circle" size={13} color={colors.spotDanger} />
-          <Text style={[styles.errorText, { color: colors.spotDanger }]}>
-            {visibleError}
-          </Text>
-        </Animated.View>
-      )}
 
       {/* Auth buttons */}
       <View style={styles.authSection}>
@@ -140,17 +90,6 @@ const styles = StyleSheet.create({
   },
   tagline: {
     ...SpotTypography.body,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingBottom: 12,
-    paddingHorizontal: 24,
-  },
-  errorText: {
-    ...SpotTypography.footnote,
   },
   authSection: {
     paddingHorizontal: 24,

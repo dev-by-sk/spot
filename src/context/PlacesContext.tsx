@@ -1,7 +1,13 @@
-import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
-import * as Crypto from 'expo-crypto';
-import * as GooglePlacesService from '../services/googlePlacesService';
-import * as SupabaseService from '../services/supabaseService';
+import React, {
+  createContext,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
+import * as Crypto from "expo-crypto";
+import * as GooglePlacesService from "../services/googlePlacesService";
+import * as SupabaseService from "../services/supabaseService";
 import {
   upsertLocalPlaceCache,
   insertLocalSavedPlace,
@@ -10,19 +16,23 @@ import {
   clearPendingDeletion,
   updateLocalSavedPlaceNote,
   isDuplicatePlace,
-} from '../db/database';
-import { useSavedPlaces } from '../db/useSavedPlaces';
-import { analytics, AnalyticsEvent } from '../services/analyticsService';
-import { requestLocationPermission, getCurrentLocation } from '../services/locationService';
-import { pullFromRemote, pushToRemote } from '../services/syncService';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
+} from "../db/database";
+import { useSavedPlaces } from "../db/useSavedPlaces";
+import { analytics, AnalyticsEvent } from "../services/analyticsService";
+import {
+  requestLocationPermission,
+  getCurrentLocation,
+} from "../services/locationService";
+import { pullFromRemote, pushToRemote } from "../services/syncService";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import { useToast } from "./ToastContext";
 import type {
   PlaceSearchResult,
   PlaceCacheDTO,
   SavedPlaceLocal,
   PlaceCategory,
-} from '../types';
-import { SpotError } from '../types';
+} from "../types";
+import { SpotError } from "../types";
 
 export interface PlacesContextValue {
   // Network
@@ -40,9 +50,19 @@ export interface PlacesContextValue {
   savedPlaces: SavedPlaceLocal[];
   isLoadingPlaces: boolean;
   refreshPlaces: (userId: string) => Promise<void>;
-  savePlace: (dto: PlaceCacheDTO, note: string, userId: string, dateVisited?: string | null) => Promise<void>;
+  savePlace: (
+    dto: PlaceCacheDTO,
+    note: string,
+    userId: string,
+    dateVisited?: string | null,
+  ) => Promise<void>;
   deletePlaceById: (id: string, placeName: string) => Promise<void>;
-  updateNote: (id: string, note: string, placeName: string, dateVisited?: string | null) => Promise<void>;
+  updateNote: (
+    id: string,
+    note: string,
+    placeName: string,
+    dateVisited?: string | null,
+  ) => Promise<void>;
 
   // Filter
   selectedFilter: PlaceCategory | null;
@@ -51,14 +71,11 @@ export interface PlacesContextValue {
   // Sync
   isSyncing: boolean;
   syncPlaces: (userId: string) => Promise<void>;
-
-  // Error
-  errorMessage: string | null;
 }
 
 export const PlacesContext = createContext<PlacesContextValue>({
   isOnline: true,
-  searchQuery: '',
+  searchQuery: "",
   setSearchQuery: () => {},
   searchResults: [],
   isSearching: false,
@@ -74,18 +91,22 @@ export const PlacesContext = createContext<PlacesContextValue>({
   setSelectedFilter: () => {},
   isSyncing: false,
   syncPlaces: async () => {},
-  errorMessage: null,
 });
 
 export function PlacesProvider({ children }: { children: React.ReactNode }) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedFilter, setSelectedFilterState] = useState<PlaceCategory | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilterState] =
+    useState<PlaceCategory | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const { showToast } = useToast();
   const isOnline = useNetworkStatus();
-  const { places: savedPlaces, isLoading: isLoadingPlaces, refresh: refreshPlaces } = useSavedPlaces();
+  const {
+    places: savedPlaces,
+    isLoading: isLoadingPlaces,
+    refresh: refreshPlaces,
+  } = useSavedPlaces();
   const currentUserIdRef = useRef<string | null>(null);
   const isSyncInProgressRef = useRef(false);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -111,60 +132,79 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const search = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    if (!isOnline) {
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const results = await GooglePlacesService.autocomplete(
-        query,
-        userLocationRef.current?.lat,
-        userLocationRef.current?.lng,
-      );
-      setSearchResults(results);
-      analytics.track(AnalyticsEvent.SearchPerformed, {
-        query,
-        result_count: results.length,
-      });
-    } catch (error: any) {
-      console.log('[Search] Error:', error.message ?? error);
-      setErrorMessage(error.message ?? 'Search failed');
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [isOnline]);
+  const search = useCallback(
+    async (query: string) => {
+      if (!query.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      if (!isOnline) {
+        setSearchResults([]);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const results = await GooglePlacesService.autocomplete(
+          query,
+          userLocationRef.current?.lat,
+          userLocationRef.current?.lng,
+        );
+        setSearchResults(results);
+        analytics.track(AnalyticsEvent.SearchPerformed, {
+          query,
+          result_count: results.length,
+        });
+      } catch (error: any) {
+        console.log("[Search] Error:", error.message ?? error);
+        setSearchResults([]);
+        showToast({
+          text: error.message ?? "Search failed",
+          type: "error",
+          action: { label: "Retry", onPress: () => search(query) },
+        });
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [isOnline, showToast],
+  );
 
-  const getPlaceDetails = useCallback(async (placeId: string): Promise<PlaceCacheDTO | null> => {
-    if (!isOnline) {
-      setErrorMessage("You're offline. Place details unavailable.");
-      return null;
-    }
-    try {
-      const details = await GooglePlacesService.getPlaceDetails(placeId);
-      analytics.track(AnalyticsEvent.SearchResultTapped, {
-        place_name: details.name,
-        category: details.category,
-      });
-      return details;
-    } catch (error: any) {
-      setErrorMessage(error.message ?? 'Failed to load place details');
-      return null;
-    }
-  }, [isOnline]);
+  const getPlaceDetails = useCallback(
+    async (placeId: string): Promise<PlaceCacheDTO | null> => {
+      if (!isOnline) {
+        return null;
+      }
+      try {
+        const details = await GooglePlacesService.getPlaceDetails(placeId);
+        analytics.track(AnalyticsEvent.SearchResultTapped, {
+          place_name: details.name,
+          category: details.category,
+        });
+        return details;
+      } catch (error: any) {
+        showToast({
+          text: error.message ?? "Failed to load place details",
+          type: "error",
+        });
+        return null;
+      }
+    },
+    [isOnline, showToast],
+  );
 
   const savePlace = useCallback(
-    async (dto: PlaceCacheDTO, note: string, userId: string, dateVisited?: string | null) => {
+    async (
+      dto: PlaceCacheDTO,
+      note: string,
+      userId: string,
+      dateVisited?: string | null,
+    ) => {
       // Check for duplicate
       const duplicate = await isDuplicatePlace(userId, dto.google_place_id);
       if (duplicate) {
-        analytics.track(AnalyticsEvent.DuplicateBlocked, { place_name: dto.name });
+        analytics.track(AnalyticsEvent.DuplicateBlocked, {
+          place_name: dto.name,
+        });
         throw SpotError.duplicatePlace();
       }
 
@@ -206,7 +246,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
           saved_at: now,
         });
       } catch (error) {
-        console.warn('[Sync] Background save push failed:', error);
+        console.warn("[Sync] Background save push failed:", error);
       }
     },
     [refreshPlaces],
@@ -229,14 +269,22 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         await SupabaseService.deleteSavedPlace(id);
         await clearPendingDeletion(id);
       } catch (error) {
-        console.warn('[Sync] Background delete push failed — will retry on reconnect:', error);
+        console.warn(
+          "[Sync] Background delete push failed — will retry on reconnect:",
+          error,
+        );
       }
     },
     [refreshPlaces],
   );
 
   const updateNote = useCallback(
-    async (id: string, note: string, placeName: string, dateVisited?: string | null) => {
+    async (
+      id: string,
+      note: string,
+      placeName: string,
+      dateVisited?: string | null,
+    ) => {
       await updateLocalSavedPlaceNote(id, note, dateVisited);
 
       analytics.track(AnalyticsEvent.NoteEdited, { place_name: placeName });
@@ -250,7 +298,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       try {
         await SupabaseService.updateSavedPlaceNote(id, note, dateVisited);
       } catch (error) {
-        console.warn('[Sync] Background note update push failed:', error);
+        console.warn("[Sync] Background note update push failed:", error);
       }
     },
     [refreshPlaces],
@@ -263,16 +311,27 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       currentUserIdRef.current = userId;
       setIsSyncing(true);
       try {
+        if (!isOnline) {
+          await refreshPlaces(userId);
+          return;
+        }
         await pushToRemote(userId, isOnline);
         await pullFromRemote(userId, isOnline);
         await refreshPlaces(userId);
         analytics.track(AnalyticsEvent.SyncCompleted);
+      } catch (error) {
+        showToast({
+          text: "Sync failed, pull down to try again",
+          type: "error",
+          action: { label: "Retry", onPress: () => syncPlaces(userId) },
+        });
+        throw error;
       } finally {
         setIsSyncing(false);
         isSyncInProgressRef.current = false;
       }
     },
-    [isOnline, refreshPlaces],
+    [isOnline, refreshPlaces, showToast],
   );
 
   // Auto-sync when connectivity is restored (silent — no isSyncing UI indicator)
@@ -285,8 +344,12 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       pushToRemote(userId, true)
         .then(() => pullFromRemote(userId, true))
         .then(() => refreshPlaces(userId))
-        .catch((err) => console.warn('[Sync] Reconnect sync failed:', err))
-        .finally(() => { isSyncInProgressRef.current = false; });
+        .catch((err) => {
+          console.warn("[Sync] Reconnect sync failed:", err);
+        })
+        .finally(() => {
+          isSyncInProgressRef.current = false;
+        });
     }
     prevIsOnlineRef.current = isOnline;
   }, [isOnline, refreshPlaces]);
@@ -311,7 +374,6 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         setSelectedFilter,
         isSyncing,
         syncPlaces,
-        errorMessage,
       }}
     >
       {children}
