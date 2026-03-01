@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import {
   CREATE_PLACE_CACHE_TABLE,
@@ -195,15 +196,58 @@ export function useDatabaseReady(): boolean {
 
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  const initDatabase = useCallback(async () => {
+    setInitError(null);
+    setRetrying(true);
+    try {
+      // Reset the cached instance so a fresh connection is attempted
+      dbInstance = null;
+      await getDatabase();
+      setIsReady(true);
+    } catch (error) {
+      console.error('[Database] Initialization failed:', error);
+      setInitError(
+        error instanceof Error ? error.message : 'Unknown database error',
+      );
+    } finally {
+      setRetrying(false);
+    }
+  }, []);
 
   useEffect(() => {
-    getDatabase()
-      .then(() => setIsReady(true))
-      .catch((error) => {
-        console.error('[Database] Initialization failed:', error);
-        setIsReady(true); // Allow app to render even if DB fails
-      });
-  }, []);
+    initDatabase();
+  }, [initDatabase]);
+
+  if (initError) {
+    return React.createElement(View, { style: dbErrorStyles.container }, [
+      React.createElement(Text, { key: 'title', style: dbErrorStyles.title }, 'Database Error'),
+      React.createElement(
+        Text,
+        { key: 'message', style: dbErrorStyles.message },
+        'The app could not initialize its local database. Please try again.',
+      ),
+      React.createElement(
+        Text,
+        { key: 'detail', style: dbErrorStyles.detail },
+        initError,
+      ),
+      React.createElement(
+        TouchableOpacity,
+        {
+          key: 'button',
+          style: dbErrorStyles.button,
+          onPress: initDatabase,
+          disabled: retrying,
+        },
+        retrying
+          ? React.createElement(ActivityIndicator, { color: '#FFFFFF' })
+          : React.createElement(Text, { style: dbErrorStyles.buttonText }, 'Retry'),
+      ),
+    ]);
+  }
 
   return React.createElement(
     DatabaseContext.Provider,
@@ -211,3 +255,44 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     children,
   );
 }
+
+const dbErrorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    backgroundColor: '#FAFAF9',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  message: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  detail: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  button: {
+    backgroundColor: '#047857',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+});
