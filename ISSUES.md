@@ -31,7 +31,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 2. No Rate Limiting Anywhere
+### 2. No Rate Limiting Anywhere -- THIS IS FIXED
 
 **Fix** · **Effort: Medium (2–4 hr)**
 
@@ -50,7 +50,7 @@ These must be fixed before any public release. Each one is either a security vul
 
 ---
 
-### 3. Auth Tokens Stored in Unencrypted AsyncStorage
+### 3. Auth Tokens Stored in Unencrypted AsyncStorage -- THIS IS FIXED
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -179,7 +179,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 10. Database Init Failure Is Swallowed
+### 10. Database Init Failure Is Swallowed -- PENDING MR
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -197,7 +197,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 11. Missing Loading States Throughout the App
+### 11. Missing Loading States Throughout the App -- THIS IS FIXED
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -223,7 +223,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 12. Missing Error States / Silent Error Handling
+### 12. Missing Error States / Silent Error Handling -- PENDING MR
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -246,7 +246,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 13. Search Within Saved Places
+### 13. Search Within Saved Places -- THIS IS FIXED
 
 **Feature** · **Effort: Medium (2–3 hr)**
 
@@ -264,7 +264,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 14. No "Open in Maps" Button
+### 14. No "Open in Maps" Button -- THIS IS FIXED
 
 **Feature** · **Effort: Small (<1 hr)**
 
