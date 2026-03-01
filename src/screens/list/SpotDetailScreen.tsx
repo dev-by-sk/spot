@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -25,6 +25,19 @@ export function SpotDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   const priceLabel = place.price_level ? "$".repeat(place.price_level) : null;
+  const todayName = [
+    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+  ][new Date().getDay()];
+  const [hoursExpanded, setHoursExpanded] = useState(false);
+  const hasRating = place.rating != null && place.rating > 0;
+  const hasInfoData =
+    hasRating ||
+    !!priceLabel ||
+    !!place.address ||
+    !!place.phone_number ||
+    !!place.website;
+  // Whether there's at least one row above the "action" rows (phone/website)
+  const hasUpperRow = hasRating || !!priceLabel || !!place.address;
 
   const openInMaps = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -119,6 +132,7 @@ export function SpotDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Info card */}
+        {hasInfoData ? (
         <View
           style={[
             styles.card,
@@ -156,7 +170,7 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                   {place.rating.toFixed(1)}
                 </Text>
               </View>
-              {priceLabel || place.address ? (
+              {priceLabel ? (
                 <View
                   style={[
                     styles.cardDivider,
@@ -168,8 +182,53 @@ export function SpotDetailScreen({ route, navigation }: Props) {
           ) : null}
 
           {priceLabel ? (
+            <View style={styles.cardRow}>
+              <View
+                style={[
+                  styles.iconWrap,
+                  { backgroundColor: `${colors.spotEmerald}15` },
+                ]}
+              >
+                <Ionicons
+                  name="cash-outline"
+                  size={15}
+                  color={colors.spotEmerald}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.cardRowLabel,
+                  { color: colors.spotTextSecondary },
+                ]}
+              >
+                Price
+              </Text>
+              <Text
+                style={[
+                  styles.cardRowValue,
+                  { color: colors.spotTextPrimary },
+                ]}
+              >
+                {priceLabel}
+              </Text>
+            </View>
+          ) : null}
+
+          {place.address ? (
             <>
-              <View style={styles.cardRow}>
+              {(place.rating != null && place.rating > 0) || priceLabel ? (
+                <View
+                  style={[
+                    styles.cardDivider,
+                    { backgroundColor: colors.spotDivider },
+                  ]}
+                />
+              ) : null}
+              <TouchableOpacity
+                style={styles.cardRow}
+                onPress={openInMaps}
+                activeOpacity={0.6}
+              >
                 <View
                   style={[
                     styles.iconWrap,
@@ -177,7 +236,52 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                   ]}
                 >
                   <Ionicons
-                    name="cash-outline"
+                    name="location-outline"
+                    size={15}
+                    color={colors.spotEmerald}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.cardRowValue,
+                    { color: colors.spotEmerald, flex: 1 },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {place.address}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={colors.spotEmerald}
+                />
+              </TouchableOpacity>
+            </>
+          ) : null}
+
+          {place.phone_number ? (
+            <>
+              {hasUpperRow ? (
+                <View
+                  style={[
+                    styles.cardDivider,
+                    { backgroundColor: colors.spotDivider },
+                  ]}
+                />
+              ) : null}
+              <TouchableOpacity
+                style={styles.cardRow}
+                onPress={callPhone}
+                activeOpacity={0.6}
+              >
+                <View
+                  style={[
+                    styles.iconWrap,
+                    { backgroundColor: `${colors.spotEmerald}15` },
+                  ]}
+                >
+                  <Ionicons
+                    name="call-outline"
                     size={15}
                     color={colors.spotEmerald}
                   />
@@ -188,18 +292,29 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                     { color: colors.spotTextSecondary },
                   ]}
                 >
-                  Price
+                  Phone
                 </Text>
                 <Text
                   style={[
                     styles.cardRowValue,
-                    { color: colors.spotTextPrimary },
+                    { color: colors.spotEmerald },
                   ]}
+                  numberOfLines={1}
                 >
-                  {priceLabel}
+                  {place.phone_number}
                 </Text>
-              </View>
-              {place.address ? (
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={colors.spotEmerald}
+                />
+              </TouchableOpacity>
+            </>
+          ) : null}
+
+          {place.website ? (
+            <>
+              {(hasUpperRow || !!place.phone_number) ? (
                 <View
                   style={[
                     styles.cardDivider,
@@ -207,15 +322,70 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                   ]}
                 />
               ) : null}
+              <TouchableOpacity
+                style={styles.cardRow}
+                onPress={openWebsite}
+                activeOpacity={0.6}
+              >
+                <View
+                  style={[
+                    styles.iconWrap,
+                    { backgroundColor: `${colors.spotEmerald}15` },
+                  ]}
+                >
+                  <Ionicons
+                    name="globe-outline"
+                    size={15}
+                    color={colors.spotEmerald}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.cardRowLabel,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  Website
+                </Text>
+                <Text
+                  style={[
+                    styles.cardRowValue,
+                    { color: colors.spotEmerald },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {(() => {
+                    try {
+                      return new URL(place.website).hostname;
+                    } catch {
+                      return place.website;
+                    }
+                  })()}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={colors.spotEmerald}
+                />
+              </TouchableOpacity>
             </>
           ) : null}
 
-          {place.address ? (
-            <TouchableOpacity
-              style={styles.cardRow}
-              onPress={openInMaps}
-              activeOpacity={0.6}
-            >
+        </View>
+        ) : null}
+
+        {/* Hours card */}
+        {place.opening_hours ? (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.spotCardBackground,
+                borderColor: colors.spotDivider,
+              },
+            ]}
+          >
+            <View style={styles.cardRow}>
               <View
                 style={[
                   styles.iconWrap,
@@ -223,159 +393,28 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                 ]}
               >
                 <Ionicons
-                  name="location-outline"
+                  name="time-outline"
                   size={15}
                   color={colors.spotEmerald}
                 />
               </View>
-              <Text
-                style={[
-                  styles.cardRowValue,
-                  { color: colors.spotEmerald, flex: 1 },
-                ]}
-                numberOfLines={2}
-              >
-                {place.address}
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={14}
-                color={colors.spotEmerald}
-              />
-            </TouchableOpacity>
-          ) : null}
-
-          <View
-            style={[
-              styles.cardDivider,
-              { backgroundColor: colors.spotDivider },
-            ]}
-          />
-
-          <TouchableOpacity
-            style={styles.cardRow}
-            onPress={callPhone}
-            activeOpacity={place.phone_number ? 0.6 : 1}
-            disabled={!place.phone_number}
-          >
-            <View
-              style={[
-                styles.iconWrap,
-                { backgroundColor: `${colors.spotEmerald}15` },
-              ]}
-            >
-              <Ionicons
-                name="call-outline"
-                size={15}
-                color={colors.spotEmerald}
-              />
-            </View>
-            <Text
-              style={[
-                styles.cardRowValue,
-                {
-                  flex: 1,
-                  color: place.phone_number
-                    ? colors.spotEmerald
-                    : colors.spotTextSecondary,
-                  textAlign: place.phone_number ? "right" : "left",
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {place.phone_number ?? "—"}
-            </Text>
-            {place.phone_number ? (
-              <Ionicons
-                name="chevron-forward"
-                size={14}
-                color={colors.spotEmerald}
-              />
-            ) : null}
-          </TouchableOpacity>
-
-          <View
-            style={[
-              styles.cardDivider,
-              { backgroundColor: colors.spotDivider },
-            ]}
-          />
-
-          <TouchableOpacity
-            style={styles.cardRow}
-            onPress={openWebsite}
-            activeOpacity={place.website ? 0.6 : 1}
-            disabled={!place.website}
-          >
-            <View
-              style={[
-                styles.iconWrap,
-                { backgroundColor: `${colors.spotEmerald}15` },
-              ]}
-            >
-              <Ionicons
-                name="globe-outline"
-                size={15}
-                color={colors.spotEmerald}
-              />
-            </View>
-            <Text
-              style={[
-                styles.cardRowValue,
-                {
-                  flex: 1,
-                  color: place.website
-                    ? colors.spotEmerald
-                    : colors.spotTextSecondary,
-                  textAlign: place.website ? "right" : "left",
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {place.website
-                ? place.website.replace(/^https?:\/\//, "").replace(/\/$/, "")
-                : "—"}
-            </Text>
-            {place.website ? (
-              <Ionicons
-                name="chevron-forward"
-                size={14}
-                color={colors.spotEmerald}
-              />
-            ) : null}
-          </TouchableOpacity>
-
-          <View
-            style={[
-              styles.cardDivider,
-              { backgroundColor: colors.spotDivider },
-            ]}
-          />
-
-          <View style={styles.cardRow}>
-            <View
-              style={[
-                styles.iconWrap,
-                { backgroundColor: `${colors.spotEmerald}15` },
-              ]}
-            >
-              <Ionicons
-                name="time-outline"
-                size={15}
-                color={colors.spotEmerald}
-              />
-            </View>
-            {place.opening_hours ? (
               <View style={{ flex: 1 }}>
                 {place.opening_hours.split("\n").map((line, i) => {
                   const [day, ...rest] = line.split(": ");
                   const hours = rest.join(": ");
+                  const isToday = day === todayName;
+                  if (!hoursExpanded && !isToday) return null;
                   return (
                     <View key={i} style={styles.hoursRow}>
                       <Text
                         style={[
                           styles.hoursDay,
-                          { color: colors.spotTextPrimary },
+                          {
+                            color: isToday && hoursExpanded
+                              ? colors.spotEmerald
+                              : colors.spotTextSecondary,
+                            fontWeight: isToday ? "600" : "400",
+                          },
                         ]}
                       >
                         {day}
@@ -383,7 +422,12 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                       <Text
                         style={[
                           styles.hoursTime,
-                          { color: colors.spotTextPrimary },
+                          {
+                            color: isToday && hoursExpanded
+                              ? colors.spotEmerald
+                              : colors.spotTextPrimary,
+                            fontWeight: isToday ? "600" : "400",
+                          },
                         ]}
                       >
                         {hours}
@@ -392,22 +436,29 @@ export function SpotDetailScreen({ route, navigation }: Props) {
                   );
                 })}
               </View>
-            ) : (
-              <Text
-                style={[
-                  styles.cardRowValue,
-                  {
-                    flex: 1,
-                    color: colors.spotTextSecondary,
-                    textAlign: "left",
-                  },
-                ]}
-              >
-                {"—"}
+            </View>
+            <View
+              style={[styles.cardDivider, { backgroundColor: colors.spotDivider }]}
+            />
+            <TouchableOpacity
+              style={styles.hoursToggle}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setHoursExpanded((prev) => !prev);
+              }}
+              activeOpacity={0.6}
+            >
+              <Text style={[styles.hoursToggleText, { color: colors.spotEmerald }]}>
+                {hoursExpanded ? "Show less" : "See all hours"}
               </Text>
-            )}
+              <Ionicons
+                name={hoursExpanded ? "chevron-up" : "chevron-down"}
+                size={14}
+                color={colors.spotEmerald}
+              />
+            </TouchableOpacity>
           </View>
-        </View>
+        ) : null}
 
         {/* Note card */}
         <Text
@@ -621,5 +672,17 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "right",
     flex: 1,
+  },
+  hoursToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginLeft: 42,
+  },
+  hoursToggleText: {
+    ...SpotTypography.subheadline,
+    fontWeight: "500",
   },
 });
