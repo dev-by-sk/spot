@@ -45,6 +45,18 @@ export const CREATE_SAVED_PLACES_GOOGLE_INDEX = `
   CREATE INDEX IF NOT EXISTS idx_saved_places_google_place_id ON saved_places(google_place_id);
 `;
 
+export const DEDUP_SAVED_PLACES = `
+  DELETE FROM saved_places
+  WHERE rowid NOT IN (
+    SELECT MIN(rowid) FROM saved_places GROUP BY user_id, google_place_id
+  );
+`;
+
+export const CREATE_SAVED_PLACES_UNIQUE_USER_GOOGLE_INDEX = `
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_places_user_google
+  ON saved_places(user_id, google_place_id);
+`;
+
 export const CREATE_PENDING_DELETIONS_TABLE = `
   CREATE TABLE IF NOT EXISTS pending_deletions (
     id TEXT PRIMARY KEY NOT NULL,

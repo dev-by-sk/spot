@@ -6,6 +6,7 @@ import {
   getLocalPlaceCacheForSync,
   fetchPendingDeletionIds,
   clearPendingDeletion,
+  deleteLocalSavedPlace,
 } from '../db/database';
 import type { SavedPlaceDTO } from '../types';
 
@@ -22,9 +23,38 @@ export async function pullFromRemote(userId: string, isOnline: boolean): Promise
   ]);
 
   const pendingSet = new Set(pendingDeletionIds);
-  const errors: Error[] = [];
+
+  // Deduplicate remote places — keep the earliest saved_at per google_place_id
+  const seenGoogleIds = new Map<string, SavedPlaceDTO>();
+  const duplicateRemoteIds: string[] = [];
 
   for (const dto of remotePlaces) {
+    const key = `${dto.user_id}:${dto.google_place_id}`;
+    const existing = seenGoogleIds.get(key);
+    if (existing) {
+      const keepEarlier = existing.saved_at <= dto.saved_at;
+      duplicateRemoteIds.push(keepEarlier ? dto.id : existing.id);
+      if (!keepEarlier) seenGoogleIds.set(key, dto);
+    } else {
+      seenGoogleIds.set(key, dto);
+    }
+  }
+
+  // Clean up server-side duplicates
+  for (const dupId of duplicateRemoteIds) {
+    try {
+      await SupabaseService.deleteSavedPlace(dupId);
+    } catch (error) {
+      console.warn('[Sync] Failed to delete server duplicate:', dupId, error);
+    }
+  }
+
+  // Filter out duplicates before upserting locally
+  const deduped = remotePlaces.filter((dto) => !duplicateRemoteIds.includes(dto.id));
+
+  const errors: Error[] = [];
+
+  for (const dto of deduped) {
     // Skip places the user deleted locally but that haven't synced yet
     if (pendingSet.has(dto.id)) continue;
 
@@ -76,11 +106,23 @@ export async function pushToRemote(userId: string, isOnline: boolean): Promise<v
   const localPlaces = await fetchLocalSavedPlaces(userId);
   const remotePlaces = await SupabaseService.fetchSavedPlaces();
   const remoteMap = new Map(remotePlaces.map((p) => [p.id, p]));
+  const remoteByGoogleId = new Map<string, SavedPlaceDTO>();
+  for (const rp of remotePlaces) {
+    remoteByGoogleId.set(`${rp.user_id}:${rp.google_place_id}`, rp);
+  }
 
   for (const local of localPlaces) {
     const remote = remoteMap.get(local.id);
 
     if (!remote) {
+      // Check if another device already saved this place under a different id
+      const remoteByPlace = remoteByGoogleId.get(`${local.user_id}:${local.google_place_id}`);
+      if (remoteByPlace) {
+        // Another device already saved this place — merge locally instead of pushing a duplicate
+        await deleteLocalSavedPlace(local.id);
+        continue;
+      }
+
       // This place exists locally but not remotely — push it
       if (local.google_place_id) {
         const cache = await getLocalPlaceCacheForSync(local.google_place_id);
@@ -121,3 +163,8 @@ export async function pushToRemote(userId: string, isOnline: boolean): Promise<v
     }
   }
 }
+
+// NOTE: A matching Supabase unique index should be created via migration:
+//   CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_places_user_google
+//   ON saved_places(user_id, google_place_id);
+// Run this via the Supabase dashboard or CLI. Client-side dedup handles it gracefully regardless.

@@ -154,6 +154,7 @@ beforeEach(() => {
   mockDb.upsertLocalSavedPlace.mockResolvedValue(undefined);
   mockDb.clearPendingDeletion.mockResolvedValue(undefined);
   mockDb.getLocalPlaceCacheForSync.mockResolvedValue(null);
+  mockDb.deleteLocalSavedPlace.mockResolvedValue(undefined);
   mockSupabase.deleteSavedPlace.mockResolvedValue(undefined);
   mockSupabase.uploadSavedPlace.mockResolvedValue(undefined);
   mockSupabase.upsertPlaceCache.mockResolvedValue(undefined);
@@ -176,8 +177,8 @@ describe('pullFromRemote', () => {
   // ── Happy path ──
 
   it('upserts each remote place into local SQLite', async () => {
-    const placeA = makeRemotePlace({ id: 'sp-1' });
-    const placeB = makeRemotePlace({ id: 'sp-2', place_cache: null });
+    const placeA = makeRemotePlace({ id: 'sp-1', google_place_id: 'gp-1' });
+    const placeB = makeRemotePlace({ id: 'sp-2', google_place_id: 'gp-2', place_cache: null });
     mockSupabase.fetchSavedPlaces.mockResolvedValue([placeA, placeB]);
 
     await pullFromRemote(USER_ID, true);
@@ -291,9 +292,9 @@ describe('pullFromRemote', () => {
   // One upsert failure aborts all subsequent places. PRD intends each place
   // is synced independently so a single bad record doesn't block the rest.
   it('continues upserting remaining places when one fails', async () => {
-    const placeA = makeRemotePlace({ id: 'sp-a', place_cache: null });
-    const placeB = makeRemotePlace({ id: 'sp-b', place_cache: null });
-    const placeC = makeRemotePlace({ id: 'sp-c', place_cache: null });
+    const placeA = makeRemotePlace({ id: 'sp-a', google_place_id: 'gp-a', place_cache: null });
+    const placeB = makeRemotePlace({ id: 'sp-b', google_place_id: 'gp-b', place_cache: null });
+    const placeC = makeRemotePlace({ id: 'sp-c', google_place_id: 'gp-c', place_cache: null });
     mockSupabase.fetchSavedPlaces.mockResolvedValue([placeA, placeB, placeC]);
     mockDb.upsertLocalSavedPlace
       .mockResolvedValueOnce(undefined)   // sp-a OK

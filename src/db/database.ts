@@ -24,6 +24,8 @@ import {
   MIGRATE_PLACE_CACHE_ADD_WEBSITE,
   MIGRATE_PLACE_CACHE_ADD_PHONE,
   MIGRATE_PLACE_CACHE_ADD_OPENING_HOURS,
+  DEDUP_SAVED_PLACES,
+  CREATE_SAVED_PLACES_UNIQUE_USER_GOOGLE_INDEX,
 } from "./schema";
 import type { PlaceCacheDTO, SavedPlaceDTO, SavedPlaceLocal } from "../types";
 import { SpotTypography } from "../theme/typography";
@@ -49,6 +51,11 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   } catch {}
   try {
     await dbInstance.execAsync(MIGRATE_PLACE_CACHE_ADD_OPENING_HOURS);
+  } catch {}
+  // Deduplicate existing rows then add unique constraint
+  try {
+    await dbInstance.execAsync(DEDUP_SAVED_PLACES);
+    await dbInstance.execAsync(CREATE_SAVED_PLACES_UNIQUE_USER_GOOGLE_INDEX);
   } catch {}
   return dbInstance;
 }
@@ -232,21 +239,29 @@ export async function upsertLocalSavedPlace(
   place: Omit<SavedPlaceDTO, "place_cache">,
 ): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO saved_places (id, user_id, google_place_id, note_text, date_visited, saved_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       note_text = excluded.note_text,
-       date_visited = excluded.date_visited`,
-    [
-      place.id,
-      place.user_id,
-      place.google_place_id,
-      place.note_text,
-      place.date_visited,
-      place.saved_at,
-    ],
+  // Check if a different id already holds this user+place combination
+  const existing = await db.getFirstAsync<{ id: string }>(
+    `SELECT id FROM saved_places WHERE user_id = ? AND google_place_id = ? AND id != ?`,
+    [place.user_id, place.google_place_id, place.id],
   );
+
+  if (existing) {
+    // Merge: update the existing row (keep the older id, update note/date)
+    await db.runAsync(
+      `UPDATE saved_places SET note_text = ?, date_visited = ? WHERE id = ?`,
+      [place.note_text, place.date_visited, existing.id],
+    );
+  } else {
+    // Normal upsert by id
+    await db.runAsync(
+      `INSERT INTO saved_places (id, user_id, google_place_id, note_text, date_visited, saved_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         note_text = excluded.note_text,
+         date_visited = excluded.date_visited`,
+      [place.id, place.user_id, place.google_place_id, place.note_text, place.date_visited, place.saved_at],
+    );
+  }
 }
 
 // ── Database Provider (React Context) ──

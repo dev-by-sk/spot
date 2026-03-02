@@ -455,7 +455,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 25. Duplicate Detection / Sync Conflicts
+### 25. Duplicate Detection / Sync Conflicts -- FIXED
 
 **Fix** · **Effort: Large (4–6 hr)**
 
