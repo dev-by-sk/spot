@@ -1,5 +1,6 @@
 import * as GooglePlacesService from './googlePlacesService';
 import { supabase } from '../config/supabase';
+import { retryWithBackoff } from '../utils/retry';
 import type { PlaceSearchResult } from '../types';
 
 const FETCH_TIMEOUT_MS = 5_000;
@@ -139,14 +140,17 @@ async function extractPlaceNameWithLLM(
 
     if (!safeTitle && !safeDescription) return null;
 
-    const { data, error } = await supabase.functions.invoke('extract-tiktok', {
-      body: { title: safeTitle, description: safeDescription },
-    });
+    const data = await retryWithBackoff(async () => {
+      const { data: result, error: fnError } = await supabase.functions.invoke('extract-tiktok', {
+        body: { title: safeTitle, description: safeDescription },
+      });
 
-    if (error) {
-      console.warn('[Share] extract-place function failed:', error.message);
-      return null;
-    }
+      if (fnError) {
+        throw new Error(fnError.message);
+      }
+
+      return result;
+    });
 
     return data;
   } catch (error) {
