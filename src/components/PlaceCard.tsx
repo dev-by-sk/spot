@@ -19,6 +19,7 @@ const CATEGORY_CONFIG: Record<string, { icon: IoniconName; size: number; bg: str
   Dessert:       { icon: 'ice-cream-outline',    size: 21, bg: 'rgba(236, 72,  153, 0.12)', color: '#DB2777' },
   Activity:      { icon: 'bicycle-outline',      size: 20, bg: 'rgba(59,  130, 246, 0.12)', color: '#2563EB' },
   Entertainment: { icon: 'film-outline',         size: 20, bg: 'rgba(20,  184, 166, 0.12)', color: '#0D9488' },
+  Gym:           { icon: 'barbell-outline',      size: 20, bg: 'rgba(239, 68,  68,  0.12)', color: '#EF4444' },
   Other:         { icon: 'grid-outline',         size: 20, bg: 'rgba(107, 114, 128, 0.10)', color: '#6B7280' },
 };
 
