@@ -41,7 +41,7 @@ export function SaveConfirmationModal({
   if (!placeDTO) return null;
 
   const handleSave = () => {
-    onSave(noteText, dateVisited ? dateVisited.toISOString() : null);
+    onSave(noteText, dateVisited ? dateVisited.toISOString().split('T')[0] : null);
     setNoteText('');
     setDateVisited(null);
     setShowDatePicker(false);
