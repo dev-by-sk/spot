@@ -2,6 +2,7 @@ import React, {
   createContext,
   useState,
   useCallback,
+  useMemo,
   useRef,
   useEffect,
 } from "react";
@@ -354,28 +355,49 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     prevIsOnlineRef.current = isOnline;
   }, [isOnline, refreshPlaces]);
 
+  const contextValue = useMemo<PlacesContextValue>(
+    () => ({
+      isOnline,
+      searchQuery,
+      setSearchQuery,
+      searchResults,
+      isSearching,
+      search,
+      getPlaceDetails,
+      savedPlaces,
+      isLoadingPlaces,
+      refreshPlaces,
+      savePlace,
+      deletePlaceById,
+      updateNote,
+      selectedFilter,
+      setSelectedFilter,
+      isSyncing,
+      syncPlaces,
+    }),
+    [
+      isOnline,
+      searchQuery,
+      setSearchQuery,
+      searchResults,
+      isSearching,
+      search,
+      getPlaceDetails,
+      savedPlaces,
+      isLoadingPlaces,
+      refreshPlaces,
+      savePlace,
+      deletePlaceById,
+      updateNote,
+      selectedFilter,
+      setSelectedFilter,
+      isSyncing,
+      syncPlaces,
+    ],
+  );
+
   return (
-    <PlacesContext.Provider
-      value={{
-        isOnline,
-        searchQuery,
-        setSearchQuery,
-        searchResults,
-        isSearching,
-        search,
-        getPlaceDetails,
-        savedPlaces,
-        isLoadingPlaces,
-        refreshPlaces,
-        savePlace,
-        deletePlaceById,
-        updateNote,
-        selectedFilter,
-        setSelectedFilter,
-        isSyncing,
-        syncPlaces,
-      }}
-    >
+    <PlacesContext.Provider value={contextValue}>
       {children}
     </PlacesContext.Provider>
   );
