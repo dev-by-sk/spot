@@ -6,6 +6,7 @@ import {
   API_RATE_WINDOW_MS,
 } from '../config/constants';
 import { RateLimiter } from '../utils/rateLimiter';
+import { retryWithBackoff } from '../utils/retry';
 import { SpotError } from '../types';
 import type { PlaceSearchResult, PlaceCacheDTO } from '../types';
 
@@ -33,26 +34,28 @@ async function authenticatedRequest(url: string, skipGeneralLimit = false): Prom
     throw SpotError.networkError('Not authenticated');
   }
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${sessionData.session.access_token}`,
-      apikey: SUPABASE_ANON_KEY,
-    },
-  });
+  return retryWithBackoff(async () => {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+    });
 
-  if (!response.ok) {
-    if (response.status === 429) {
-      throw SpotError.rateLimited();
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw SpotError.rateLimited();
+      }
+      const errorBody = await response.text();
+      console.log('[GooglePlaces] Request failed:', response.status, errorBody);
+      throw SpotError.networkError('Request failed');
     }
-    const errorBody = await response.text();
-    console.log('[GooglePlaces] Request failed:', response.status, errorBody);
-    throw SpotError.networkError('Request failed');
-  }
 
-  const data = await response.json();
-  console.log('[GooglePlaces] Response:', JSON.stringify(data).slice(0, 200));
-  return data;
+    const data = await response.json();
+    console.log('[GooglePlaces] Response:', JSON.stringify(data).slice(0, 200));
+    return data;
+  });
 }
 
 export async function autocomplete(
