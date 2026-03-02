@@ -204,8 +204,11 @@ export function SavedPlacesListScreen() {
     userLocation,
   ]);
 
-  const hasAdvancedFilters =
-    selectedDistance !== null || selectedCuisine !== null || openNowEnabled;
+  const activeFilterCount =
+    (openNowEnabled ? 1 : 0) +
+    (selectedDistance !== null ? 1 : 0) +
+    (selectedCuisine !== null ? 1 : 0);
+  const hasAdvancedFilters = activeFilterCount > 0;
 
   const handleRefresh = useCallback(async () => {
     if (!currentUserId) return;
@@ -466,6 +469,11 @@ export function SavedPlacesListScreen() {
             size={22}
             color={hasAdvancedFilters ? spotEmerald : colors.spotTextSecondary}
           />
+          {activeFilterCount > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -825,6 +833,24 @@ const styles = StyleSheet.create({
   },
   filterIconButton: {
     paddingHorizontal: 16,
+  },
+  filterBadge: {
+    position: "absolute",
+    top: -4,
+    right: 8,
+    backgroundColor: spotEmerald,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  filterBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   listContent: {
     paddingVertical: 8,
