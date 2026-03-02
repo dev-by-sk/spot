@@ -282,7 +282,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 15. No Retry Logic for External API Calls
+### 15. No Retry Logic for External API Calls -- FIXED
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -320,7 +320,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 17. No LLM Fallback When Edge Function Fails
+### 17. No LLM Fallback When Edge Function Fails -- LOWKEY DOWN TO GET RID OF THIS
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
