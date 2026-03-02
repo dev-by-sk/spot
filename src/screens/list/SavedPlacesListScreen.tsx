@@ -80,7 +80,8 @@ export function SavedPlacesListScreen() {
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const deletingIdsRef = useRef<Set<string>>(new Set());
+  const [deletingVersion, setDeletingVersion] = useState(0);
 
   // Track which IDs are brand-new so we can animate them in
   const prevIdsRef = useRef<Set<string> | null>(null);
@@ -211,11 +212,8 @@ export function SavedPlacesListScreen() {
     (id: string, name: string) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       deletePlaceById(id, name);
-      setDeletingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
+      deletingIdsRef.current.delete(id);
+      setDeletingVersion((v) => v + 1);
     },
     [deletePlaceById],
   );
@@ -231,7 +229,10 @@ export function SavedPlacesListScreen() {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => setDeletingIds((prev) => new Set([...prev, place.id])),
+        onPress: () => {
+          deletingIdsRef.current.add(place.id);
+          setDeletingVersion((v) => v + 1);
+        },
       },
     ]);
   }, []);
@@ -298,55 +299,30 @@ export function SavedPlacesListScreen() {
     openSwipeableRef.current = ref;
   }, []);
 
+  const isDeletingId = useCallback(
+    (id: string) => deletingIdsRef.current.has(id),
+    [],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: SavedPlaceLocal }) => {
-      let swipeRef: Swipeable | null = null;
-      let swiping = false;
       const isNew = newIdsRef.current.has(item.id);
-      const shouldExit = deletingIds.has(item.id);
       return (
-        <AnimatedListItem
-          id={item.id}
+        <PlaceRow
+          item={item}
           isNew={isNew}
-          shouldExit={shouldExit}
-          onExitAnimationComplete={() =>
-            handleExitAnimationComplete(item.id, item.name ?? "")
-          }
-        >
-          <Swipeable
-            ref={(ref) => {
-              swipeRef = ref;
-            }}
-            renderRightActions={(_progress) =>
-              renderRightActions(item, _progress)
-            }
-            onSwipeableWillOpen={() => {
-              swiping = true;
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
-            onSwipeableClose={() => {
-              swiping = false;
-            }}
-            overshootRight={false}
-          >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                if (!swiping) {
-                  navigation.navigate("PlaceDetail", { place: item });
-                }
-              }}
-              style={styles.cardContainer}
-            >
-              <PlaceCard place={item} />
-            </TouchableOpacity>
-          </Swipeable>
-        </AnimatedListItem>
+          deletingVersion={deletingVersion}
+          isDeletingId={isDeletingId}
+          onExitAnimationComplete={handleExitAnimationComplete}
+          renderRightActions={renderRightActions}
+          handleSwipeOpen={handleSwipeOpen}
+          navigation={navigation}
+        />
       );
     },
     [
-      deletingIds,
+      deletingVersion,
+      isDeletingId,
       handleExitAnimationComplete,
       renderRightActions,
       handleSwipeOpen,
@@ -486,6 +462,10 @@ export function SavedPlacesListScreen() {
         data={filteredPlaces}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews={true}
         contentContainerStyle={[
           { flexGrow: 1 },
           filteredPlaces.length > 0 && styles.listContent,
@@ -583,6 +563,76 @@ export function SavedPlacesListScreen() {
   );
 }
 
+interface PlaceRowProps {
+  item: SavedPlaceLocal;
+  isNew: boolean;
+  deletingVersion: number;
+  isDeletingId: (id: string) => boolean;
+  onExitAnimationComplete: (id: string, name: string) => void;
+  renderRightActions: (
+    place: SavedPlaceLocal,
+    progress: Animated.AnimatedInterpolation<number>,
+  ) => React.ReactNode;
+  handleSwipeOpen: (ref: Swipeable) => void;
+  navigation: NativeStackNavigationProp<ListStackParamList>;
+}
+
+const PlaceRow = React.memo(function PlaceRow({
+  item,
+  isNew,
+  deletingVersion: _deletingVersion,
+  isDeletingId,
+  onExitAnimationComplete,
+  renderRightActions,
+  handleSwipeOpen,
+  navigation,
+}: PlaceRowProps) {
+  let swipeRef: Swipeable | null = null;
+  let swiping = false;
+  const shouldExit = isDeletingId(item.id);
+
+  return (
+    <AnimatedListItem
+      id={item.id}
+      isNew={isNew}
+      shouldExit={shouldExit}
+      onExitAnimationComplete={() =>
+        onExitAnimationComplete(item.id, item.name ?? "")
+      }
+    >
+      <Swipeable
+        ref={(ref) => {
+          swipeRef = ref;
+        }}
+        renderRightActions={(_progress) =>
+          renderRightActions(item, _progress)
+        }
+        onSwipeableWillOpen={() => {
+          swiping = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+        onSwipeableOpen={() => swipeRef && handleSwipeOpen(swipeRef)}
+        onSwipeableClose={() => {
+          swiping = false;
+        }}
+        overshootRight={false}
+      >
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => {
+            if (!swiping) {
+              navigation.navigate("PlaceDetail", { place: item });
+            }
+          }}
+          style={styles.cardContainer}
+        >
+          <PlaceCard place={item} />
+        </TouchableOpacity>
+      </Swipeable>
+    </AnimatedListItem>
+  );
+});
+
 interface AnimatedListItemProps {
   id: string;
   isNew: boolean;
@@ -591,7 +641,7 @@ interface AnimatedListItemProps {
   children: React.ReactNode;
 }
 
-function AnimatedListItem({
+const AnimatedListItem = React.memo(function AnimatedListItem({
   isNew,
   shouldExit,
   onExitAnimationComplete,
@@ -650,7 +700,7 @@ function AnimatedListItem({
       {children}
     </Animated.View>
   );
-}
+});
 
 function getDistanceKm(
   lat1: number,

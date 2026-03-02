@@ -23,7 +23,7 @@ const CATEGORY_CONFIG: Record<string, { icon: IoniconName; size: number; bg: str
   Other:         { icon: 'grid-outline',         size: 20, bg: 'rgba(107, 114, 128, 0.10)', color: '#6B7280' },
 };
 
-export function PlaceCard({ place }: PlaceCardProps) {
+export const PlaceCard = React.memo(function PlaceCard({ place }: PlaceCardProps) {
   const colors = useSpotColors();
 
   const config = place.category
@@ -95,7 +95,7 @@ export function PlaceCard({ place }: PlaceCardProps) {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
