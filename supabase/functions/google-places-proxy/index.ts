@@ -154,6 +154,7 @@ serve(async (req) => {
           website: r.website || null,
           phoneNumber: r.formatted_phone_number || null,
           openingHours: r.opening_hours?.weekday_text || null,
+          openingHoursPeriods: r.opening_hours?.periods ?? null,
         };
 
         return Response.json(result, {

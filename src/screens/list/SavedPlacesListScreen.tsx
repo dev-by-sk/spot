@@ -44,6 +44,7 @@ import { EditNoteModal } from "./EditNoteModal";
 import { useSpotColors, spotEmerald } from "../../theme/colors";
 import { SpotTypography } from "../../theme/typography";
 import type { SavedPlaceLocal } from "../../types";
+import { isPlaceOpenNow } from "../../utils/openingHours";
 
 if (
   Platform.OS === "android" &&
@@ -108,6 +109,7 @@ export function SavedPlacesListScreen() {
 
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+  const [openNowEnabled, setOpenNowEnabled] = useState(false);
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
@@ -182,6 +184,14 @@ export function SavedPlacesListScreen() {
       result = result.filter((p) => p.cuisine === selectedCuisine);
     }
 
+    // Open now filter — keep places where isPlaceOpenNow returns true or null (unknown)
+    if (openNowEnabled) {
+      result = result.filter((p) => {
+        const status = isPlaceOpenNow(p.opening_hours_periods);
+        return status === true || status === null;
+      });
+    }
+
     return result;
   }, [
     savedPlaces,
@@ -189,11 +199,12 @@ export function SavedPlacesListScreen() {
     selectedFilter,
     selectedDistance,
     selectedCuisine,
+    openNowEnabled,
     userLocation,
   ]);
 
   const hasAdvancedFilters =
-    selectedDistance !== null || selectedCuisine !== null;
+    selectedDistance !== null || selectedCuisine !== null || openNowEnabled;
 
   const handleRefresh = useCallback(async () => {
     if (!currentUserId) return;
@@ -571,11 +582,14 @@ export function SavedPlacesListScreen() {
         selectedDistance={selectedDistance}
         selectedCuisine={selectedCuisine}
         availableCuisines={availableCuisines}
+        openNowEnabled={openNowEnabled}
         onDistanceChange={setSelectedDistance}
         onCuisineChange={setSelectedCuisine}
+        onOpenNowChange={setOpenNowEnabled}
         onClearAll={() => {
           setSelectedDistance(null);
           setSelectedCuisine(null);
+          setOpenNowEnabled(false);
         }}
         onDone={() => setShowFilterSheet(false)}
       />

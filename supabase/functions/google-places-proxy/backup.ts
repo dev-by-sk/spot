@@ -17,6 +17,16 @@ const MAX_REQUESTS = 30;
 const WINDOW_MS = 60_000;
 const userRequests = new Map<string, number[]>();
 
+// Periodic cleanup — remove entries with no recent requests to prevent unbounded growth
+setInterval(() => {
+  const windowStart = Date.now() - WINDOW_MS;
+  for (const [userId, timestamps] of userRequests) {
+    if (timestamps.every((t) => t <= windowStart)) {
+      userRequests.delete(userId);
+    }
+  }
+}, WINDOW_MS);
+
 function isRateLimited(userId: string): boolean {
   const now = Date.now();
   const windowStart = now - WINDOW_MS;
@@ -117,7 +127,7 @@ serve(async (req) => {
         }
 
         const fields =
-          "place_id,name,formatted_address,geometry,rating,price_level,types";
+          "place_id,name,formatted_address,geometry,rating,price_level,types,website,formatted_phone_number,opening_hours";
         const googleUrl = `${GOOGLE_BASE}/details/json?place_id=${placeId}&fields=${fields}&key=${GOOGLE_API_KEY}`;
         const res = await fetch(googleUrl);
         const data = await res.json();
@@ -141,6 +151,9 @@ serve(async (req) => {
           types: r.types || [],
           category: mapCategory(r.types || []),
           cuisine: mapCuisine(r.types || []),
+          website: r.website || null,
+          phoneNumber: r.formatted_phone_number || null,
+          openingHours: r.opening_hours?.weekday_text || null,
         };
 
         return Response.json(result, {
@@ -186,8 +199,9 @@ serve(async (req) => {
         );
     }
   } catch (error) {
+    console.error("[google-places-proxy] Error:", error);
     return Response.json(
-      { error: error.message },
+      { error: "Internal error" },
       { status: 500, headers: corsHeaders },
     );
   }
