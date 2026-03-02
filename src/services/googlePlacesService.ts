@@ -94,6 +94,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceCacheDTO> {
     website: data.website ?? data.websiteUri ?? null,
     phone_number: data.phoneNumber ?? data.formattedPhoneNumber ?? data.nationalPhoneNumber ?? data.internationalPhoneNumber ?? null,
     opening_hours: Array.isArray(data.openingHours) ? data.openingHours.join('\n') : null,
+    opening_hours_periods: data.openingHoursPeriods ? JSON.stringify(data.openingHoursPeriods) : null,
   };
 }
 

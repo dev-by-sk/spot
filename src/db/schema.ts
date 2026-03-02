@@ -37,6 +37,10 @@ export const MIGRATE_PLACE_CACHE_ADD_OPENING_HOURS = `
   ALTER TABLE place_cache ADD COLUMN opening_hours TEXT;
 `;
 
+export const MIGRATE_PLACE_CACHE_ADD_OPENING_HOURS_PERIODS = `
+  ALTER TABLE place_cache ADD COLUMN opening_hours_periods TEXT;
+`;
+
 export const CREATE_SAVED_PLACES_USER_INDEX = `
   CREATE INDEX IF NOT EXISTS idx_saved_places_user_id ON saved_places(user_id);
 `;

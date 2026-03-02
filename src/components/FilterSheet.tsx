@@ -4,6 +4,7 @@ import {
   Text,
   Modal,
   ScrollView,
+  Switch,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
@@ -15,8 +16,10 @@ interface FilterSheetProps {
   selectedDistance: number | null;
   selectedCuisine: string | null;
   availableCuisines: string[];
+  openNowEnabled: boolean;
   onDistanceChange: (d: number | null) => void;
   onCuisineChange: (c: string | null) => void;
+  onOpenNowChange: (v: boolean) => void;
   onClearAll: () => void;
   onDone: () => void;
 }
@@ -34,8 +37,10 @@ export function FilterSheet({
   selectedDistance,
   selectedCuisine,
   availableCuisines,
+  openNowEnabled,
   onDistanceChange,
   onCuisineChange,
+  onOpenNowChange,
   onClearAll,
   onDone,
 }: FilterSheetProps) {
@@ -72,6 +77,18 @@ export function FilterSheet({
         </View>
 
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          {/* Currently Open */}
+          <View style={styles.switchRow}>
+            <Text style={[styles.sectionTitle, { color: colors.spotTextPrimary }]}>
+              Currently Open
+            </Text>
+            <Switch
+              value={openNowEnabled}
+              onValueChange={onOpenNowChange}
+              trackColor={{ false: colors.spotDivider, true: spotEmerald }}
+            />
+          </View>
+
           {/* Distance */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.spotTextPrimary }]}>
@@ -190,6 +207,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     gap: 24,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   section: {
     gap: 12,

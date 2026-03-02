@@ -138,6 +138,7 @@ function makeLocalPlace(overrides: Partial<SavedPlaceLocal> = {}): SavedPlaceLoc
     website: null,
     phone_number: null,
     opening_hours: null,
+    opening_hours_periods: null,
     ...overrides,
   };
 }
