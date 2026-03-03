@@ -157,10 +157,11 @@ export function SpotMapView({ places, userLocation, locationReady, onSelectPlace
 
   const handleViewDetails = useCallback(() => {
     if (selectedPlace) {
+      animateButtonDown();
       onSelectPlace(selectedPlace);
       setSelectedPlace(null);
     }
-  }, [selectedPlace, onSelectPlace]);
+  }, [selectedPlace, onSelectPlace, animateButtonDown]);
 
   const handleNearMe = useCallback(async () => {
     try {
