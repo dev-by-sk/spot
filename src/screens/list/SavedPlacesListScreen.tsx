@@ -153,15 +153,15 @@ export function SavedPlacesListScreen() {
   const filteredPlaces = useMemo(() => {
     let result = savedPlaces;
 
-    // Text search across name, note, address, cuisine
-    const q = listSearchQuery.trim().toLowerCase();
+    // Text search across name, note, address, cuisine (accent-insensitive)
+    const q = stripAccents(listSearchQuery.trim().toLowerCase());
     if (q.length > 0) {
       result = result.filter(
         (p) =>
-          (p.name ?? "").toLowerCase().includes(q) ||
-          (p.note_text ?? "").toLowerCase().includes(q) ||
-          (p.address ?? "").toLowerCase().includes(q) ||
-          (p.cuisine ?? "").toLowerCase().includes(q),
+          stripAccents((p.name ?? "").toLowerCase()).includes(q) ||
+          stripAccents((p.note_text ?? "").toLowerCase()).includes(q) ||
+          stripAccents((p.address ?? "").toLowerCase()).includes(q) ||
+          stripAccents((p.cuisine ?? "").toLowerCase()).includes(q),
       );
     }
 
@@ -432,44 +432,44 @@ export function SavedPlacesListScreen() {
         </TouchableOpacity>
       </Pressable>
 
-      {/* Search bar — hidden in map mode */}
-      {viewMode === "list" && (
-        <Pressable
-          style={[
-            styles.listSearchBar,
-            { backgroundColor: colors.spotSearchBar },
-          ]}
-          onPress={() => listSearchInputRef.current?.focus()}
-        >
-          <Ionicons name="search" size={16} color={colors.spotTextSecondary} />
-          <TextInput
-            ref={listSearchInputRef}
-            style={[styles.listSearchInput, { color: colors.spotTextPrimary }]}
-            placeholder="Search your spots..."
-            placeholderTextColor={colors.spotTextSecondary}
-            value={listSearchQuery}
-            onChangeText={(text) => {
-              setListSearchQuery(text);
+      {/* Search bar — visible in both list and map modes */}
+      <Pressable
+        style={[
+          styles.listSearchBar,
+          { backgroundColor: colors.spotSearchBar },
+        ]}
+        onPress={() => listSearchInputRef.current?.focus()}
+      >
+        <Ionicons name="search" size={16} color={colors.spotTextSecondary} />
+        <TextInput
+          ref={listSearchInputRef}
+          style={[styles.listSearchInput, { color: colors.spotTextPrimary }]}
+          placeholder="Search your spots..."
+          placeholderTextColor={colors.spotTextSecondary}
+          value={listSearchQuery}
+          onChangeText={(text) => {
+            setListSearchQuery(text);
+            if (viewMode === "list") {
               openSwipeableRef.current?.close();
-            }}
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="search"
-          />
-          {listSearchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setListSearchQuery("")}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name="close-circle"
-                size={16}
-                color={colors.spotTextSecondary}
-              />
-            </TouchableOpacity>
-          )}
-        </Pressable>
-      )}
+            }
+          }}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+        />
+        {listSearchQuery.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setListSearchQuery("")}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="close-circle"
+              size={16}
+              color={colors.spotTextSecondary}
+            />
+          </TouchableOpacity>
+        )}
+      </Pressable>
 
       {/* Filter row */}
       <View style={styles.filterRow}>
@@ -494,14 +494,15 @@ export function SavedPlacesListScreen() {
         </TouchableOpacity>
       </View>
 
-      {viewMode === "map" ? (
+      <View style={{ flex: 1, display: viewMode === "map" ? "flex" : "none" }}>
         <SpotMapView
           places={filteredPlaces}
           userLocation={userLocation}
           locationReady={locationReady}
           onSelectPlace={(place) => navigation.navigate("PlaceDetail", { place })}
         />
-      ) : (
+      </View>
+      <View style={{ flex: 1, display: viewMode === "list" ? "flex" : "none" }}>
         <FlatList
           data={filteredPlaces}
           keyExtractor={(item) => item.id}
@@ -577,7 +578,7 @@ export function SavedPlacesListScreen() {
             />
           }
         />
-      )}
+      </View>
 
       <EditNoteModal
         visible={editingPlace !== null}
@@ -767,6 +768,10 @@ function getDistanceKm(
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function stripAccents(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 const styles = StyleSheet.create({

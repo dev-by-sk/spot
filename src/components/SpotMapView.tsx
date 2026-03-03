@@ -18,9 +18,19 @@ interface SpotMapViewProps {
   onSelectPlace: (place: SavedPlaceLocal) => void;
 }
 
+const DEFAULT_REGION: Region = {
+  latitude: 39.8283,
+  longitude: -98.5795,
+  latitudeDelta: 50,
+  longitudeDelta: 50,
+};
+
 function spotsRegion(
   coords: { latitude: number; longitude: number }[],
 ): Region {
+  if (coords.length === 0) {
+    return DEFAULT_REGION;
+  }
   const lats = coords.map((c) => c.latitude);
   const lngs = coords.map((c) => c.longitude);
   const minLat = Math.min(...lats);
@@ -94,7 +104,7 @@ export function SpotMapView({ places, userLocation, locationReady, onSelectPlace
         placesWithCoords.map((p) => ({ latitude: p.lat!, longitude: p.lng! })),
       );
     }
-    return undefined;
+    return DEFAULT_REGION;
   }, []); // intentionally only on mount
 
   const handleMapRef = useCallback((ref: React.Ref<MapView>) => {
