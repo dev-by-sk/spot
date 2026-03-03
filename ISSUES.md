@@ -179,7 +179,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 10. Database Init Failure Is Swallowed -- PENDING MR
+### 10. Database Init Failure Is Swallowed -- THIS IS FIXED
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -223,7 +223,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 12. Missing Error States / Silent Error Handling -- PENDING MR
+### 12. Missing Error States / Silent Error Handling -- THIS IS FIXED
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -360,7 +360,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 19. Hardcoded Colors Break Dark Mode
+### 19. Hardcoded Colors Break Dark Mode -- THIS IS FIXED
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -455,7 +455,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 25. Duplicate Detection / Sync Conflicts
+### 25. Duplicate Detection / Sync Conflicts -- THIS IS FIXED
 
 **Fix** · **Effort: Large (4–6 hr)**
 
@@ -471,7 +471,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 26. Date Format Mismatch Between Components
+### 26. Date Format Mismatch Between Components -- THIS IS FIXED
 
 **Fix** · **Effort: Small (<1 hr)**
 
