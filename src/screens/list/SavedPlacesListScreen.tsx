@@ -41,6 +41,7 @@ import { PlaceCard } from "../../components/PlaceCard";
 import { FilterBar } from "../../components/FilterBar";
 import { FilterSheet } from "../../components/FilterSheet";
 import { EditNoteModal } from "./EditNoteModal";
+import { SpotMapView } from "../../components/SpotMapView";
 import { useSpotColors, spotEmerald } from "../../theme/colors";
 import { SpotTypography } from "../../theme/typography";
 import type { SavedPlaceLocal } from "../../types";
@@ -108,6 +109,7 @@ export function SavedPlacesListScreen() {
     prevIdsRef.current = currentIds;
   }, [savedPlaces]);
 
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const [openNowEnabled, setOpenNowEnabled] = useState(false);
@@ -115,6 +117,7 @@ export function SavedPlacesListScreen() {
     lat: number;
     lng: number;
   } | null>(null);
+  const [locationReady, setLocationReady] = useState(false);
   const [listSearchQuery, setListSearchQuery] = useState("");
 
   useEffect(() => {
@@ -136,6 +139,7 @@ export function SavedPlacesListScreen() {
           lng: loc.coords.longitude,
         });
       }
+      setLocationReady(true);
     })();
   }, []);
 
@@ -415,44 +419,57 @@ export function SavedPlacesListScreen() {
         >
           {filteredPlaces.length}
         </Text>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={() => setViewMode((m) => (m === "list" ? "map" : "list"))}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons
+            name={viewMode === "map" ? "list-outline" : "map-outline"}
+            size={22}
+            color={viewMode === "map" ? spotEmerald : colors.spotTextSecondary}
+          />
+        </TouchableOpacity>
       </Pressable>
 
-      {/* Search bar */}
-      <Pressable
-        style={[
-          styles.listSearchBar,
-          { backgroundColor: colors.spotSearchBar },
-        ]}
-        onPress={() => listSearchInputRef.current?.focus()}
-      >
-        <Ionicons name="search" size={16} color={colors.spotTextSecondary} />
-        <TextInput
-          ref={listSearchInputRef}
-          style={[styles.listSearchInput, { color: colors.spotTextPrimary }]}
-          placeholder="Search your spots..."
-          placeholderTextColor={colors.spotTextSecondary}
-          value={listSearchQuery}
-          onChangeText={(text) => {
-            setListSearchQuery(text);
-            openSwipeableRef.current?.close();
-          }}
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="search"
-        />
-        {listSearchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setListSearchQuery("")}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons
-              name="close-circle"
-              size={16}
-              color={colors.spotTextSecondary}
-            />
-          </TouchableOpacity>
-        )}
-      </Pressable>
+      {/* Search bar — hidden in map mode */}
+      {viewMode === "list" && (
+        <Pressable
+          style={[
+            styles.listSearchBar,
+            { backgroundColor: colors.spotSearchBar },
+          ]}
+          onPress={() => listSearchInputRef.current?.focus()}
+        >
+          <Ionicons name="search" size={16} color={colors.spotTextSecondary} />
+          <TextInput
+            ref={listSearchInputRef}
+            style={[styles.listSearchInput, { color: colors.spotTextPrimary }]}
+            placeholder="Search your spots..."
+            placeholderTextColor={colors.spotTextSecondary}
+            value={listSearchQuery}
+            onChangeText={(text) => {
+              setListSearchQuery(text);
+              openSwipeableRef.current?.close();
+            }}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+          />
+          {listSearchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setListSearchQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="close-circle"
+                size={16}
+                color={colors.spotTextSecondary}
+              />
+            </TouchableOpacity>
+          )}
+        </Pressable>
+      )}
 
       {/* Filter row */}
       <View style={styles.filterRow}>
@@ -477,81 +494,90 @@ export function SavedPlacesListScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={filteredPlaces}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        initialNumToRender={12}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        removeClippedSubviews={true}
-        contentContainerStyle={[
-          { flexGrow: 1 },
-          filteredPlaces.length > 0 && styles.listContent,
-        ]}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={
-          listSearchQuery.trim().length > 0 ? (
-            <View style={styles.searchEmptyContainer}>
-              <Ionicons
-                name="search-outline"
-                size={36}
-                color={colors.spotTextSecondary}
-                style={{ opacity: 0.4 }}
-              />
-              <Text
-                style={[
-                  styles.searchEmptyTitle,
-                  { color: colors.spotTextPrimary },
-                ]}
-              >
-                No spots found
-              </Text>
-              <Text
-                style={[
-                  styles.searchEmptySubtitle,
-                  { color: colors.spotTextSecondary },
-                ]}
-              >
-                No results for "{listSearchQuery}"
-              </Text>
-            </View>
-          ) : selectedFilter || hasAdvancedFilters ? (
-            <View style={styles.searchEmptyContainer}>
-              <Ionicons
-                name="filter-outline"
-                size={36}
-                color={colors.spotTextSecondary}
-                style={{ opacity: 0.4 }}
-              />
-              <Text
-                style={[
-                  styles.searchEmptyTitle,
-                  { color: colors.spotTextPrimary },
-                ]}
-              >
-                No spots matched
-              </Text>
-              <Text
-                style={[
-                  styles.searchEmptySubtitle,
-                  { color: colors.spotTextSecondary },
-                ]}
-              >
-                Try adjusting or clearing your filters
-              </Text>
-            </View>
-          ) : null
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.spotEmerald}
-          />
-        }
-      />
+      {viewMode === "map" ? (
+        <SpotMapView
+          places={filteredPlaces}
+          userLocation={userLocation}
+          locationReady={locationReady}
+          onSelectPlace={(place) => navigation.navigate("PlaceDetail", { place })}
+        />
+      ) : (
+        <FlatList
+          data={filteredPlaces}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews={true}
+          contentContainerStyle={[
+            { flexGrow: 1 },
+            filteredPlaces.length > 0 && styles.listContent,
+          ]}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            listSearchQuery.trim().length > 0 ? (
+              <View style={styles.searchEmptyContainer}>
+                <Ionicons
+                  name="search-outline"
+                  size={36}
+                  color={colors.spotTextSecondary}
+                  style={{ opacity: 0.4 }}
+                />
+                <Text
+                  style={[
+                    styles.searchEmptyTitle,
+                    { color: colors.spotTextPrimary },
+                  ]}
+                >
+                  No spots found
+                </Text>
+                <Text
+                  style={[
+                    styles.searchEmptySubtitle,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  No results for "{listSearchQuery}"
+                </Text>
+              </View>
+            ) : selectedFilter || hasAdvancedFilters ? (
+              <View style={styles.searchEmptyContainer}>
+                <Ionicons
+                  name="filter-outline"
+                  size={36}
+                  color={colors.spotTextSecondary}
+                  style={{ opacity: 0.4 }}
+                />
+                <Text
+                  style={[
+                    styles.searchEmptyTitle,
+                    { color: colors.spotTextPrimary },
+                  ]}
+                >
+                  No spots matched
+                </Text>
+                <Text
+                  style={[
+                    styles.searchEmptySubtitle,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  Try adjusting or clearing your filters
+                </Text>
+              </View>
+            ) : null
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.spotEmerald}
+            />
+          }
+        />
+      )}
 
       <EditNoteModal
         visible={editingPlace !== null}
