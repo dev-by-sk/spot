@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity, Animated, Easing, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Animated, Easing, Dimensions, Keyboard, StyleSheet } from 'react-native';
 import ClusteredMapView from 'react-native-map-clustering';
 import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -90,6 +90,21 @@ export function SpotMapView({ places, userLocation, locationReady, onSelectPlace
     };
   }, [placesWithCoords]);
 
+  // Re-frame map to fit filtered spots when search/filter changes (skip initial mount)
+  // Only re-frame if results fit within a reasonable area (~2° ≈ 200km)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (placesWithCoords.length === 0) return;
+    const coords = placesWithCoords.map((p) => ({ latitude: p.lat!, longitude: p.lng! }));
+    const region = spotsRegion(coords);
+    if (region.latitudeDelta > 2 || region.longitudeDelta > 2) return;
+    innerMapRef.current?.animateToRegion(region, 400);
+  }, [placesWithCoords]);
+
   const initialRegion = useMemo((): Region | undefined => {
     if (userLocation) {
       return {
@@ -158,6 +173,7 @@ export function SpotMapView({ places, userLocation, locationReady, onSelectPlace
   }, [animateButtonUp]);
 
   const handleMapPress = useCallback(() => {
+    Keyboard.dismiss();
     if (suppressNextMapPress.current) {
       suppressNextMapPress.current = false;
       return;
