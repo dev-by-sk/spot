@@ -41,6 +41,7 @@ import { PlaceCard } from "../../components/PlaceCard";
 import { FilterBar } from "../../components/FilterBar";
 import { FilterSheet } from "../../components/FilterSheet";
 import { EditNoteModal } from "./EditNoteModal";
+import { SpotMapView } from "../../components/SpotMapView";
 import { useSpotColors, spotEmerald } from "../../theme/colors";
 import { SpotTypography } from "../../theme/typography";
 import type { SavedPlaceLocal } from "../../types";
@@ -108,6 +109,7 @@ export function SavedPlacesListScreen() {
     prevIdsRef.current = currentIds;
   }, [savedPlaces]);
 
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const [openNowEnabled, setOpenNowEnabled] = useState(false);
@@ -115,6 +117,7 @@ export function SavedPlacesListScreen() {
     lat: number;
     lng: number;
   } | null>(null);
+  const [locationReady, setLocationReady] = useState(false);
   const [listSearchQuery, setListSearchQuery] = useState("");
 
   useEffect(() => {
@@ -136,6 +139,7 @@ export function SavedPlacesListScreen() {
           lng: loc.coords.longitude,
         });
       }
+      setLocationReady(true);
     })();
   }, []);
 
@@ -149,15 +153,15 @@ export function SavedPlacesListScreen() {
   const filteredPlaces = useMemo(() => {
     let result = savedPlaces;
 
-    // Text search across name, note, address, cuisine
-    const q = listSearchQuery.trim().toLowerCase();
+    // Text search across name, note, address, cuisine (accent-insensitive)
+    const q = stripAccents(listSearchQuery.trim().toLowerCase());
     if (q.length > 0) {
       result = result.filter(
         (p) =>
-          (p.name ?? "").toLowerCase().includes(q) ||
-          (p.note_text ?? "").toLowerCase().includes(q) ||
-          (p.address ?? "").toLowerCase().includes(q) ||
-          (p.cuisine ?? "").toLowerCase().includes(q),
+          stripAccents((p.name ?? "").toLowerCase()).includes(q) ||
+          stripAccents((p.note_text ?? "").toLowerCase()).includes(q) ||
+          stripAccents((p.address ?? "").toLowerCase()).includes(q) ||
+          stripAccents((p.cuisine ?? "").toLowerCase()).includes(q),
       );
     }
 
@@ -415,9 +419,20 @@ export function SavedPlacesListScreen() {
         >
           {filteredPlaces.length}
         </Text>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={() => setViewMode((m) => (m === "list" ? "map" : "list"))}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons
+            name={viewMode === "map" ? "list-outline" : "map-outline"}
+            size={22}
+            color={viewMode === "map" ? spotEmerald : colors.spotTextSecondary}
+          />
+        </TouchableOpacity>
       </Pressable>
 
-      {/* Search bar */}
+      {/* Search bar — visible in both list and map modes */}
       <Pressable
         style={[
           styles.listSearchBar,
@@ -434,7 +449,9 @@ export function SavedPlacesListScreen() {
           value={listSearchQuery}
           onChangeText={(text) => {
             setListSearchQuery(text);
-            openSwipeableRef.current?.close();
+            if (viewMode === "list") {
+              openSwipeableRef.current?.close();
+            }
           }}
           autoCorrect={false}
           autoCapitalize="none"
@@ -477,81 +494,91 @@ export function SavedPlacesListScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={filteredPlaces}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        initialNumToRender={12}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        removeClippedSubviews={true}
-        contentContainerStyle={[
-          { flexGrow: 1 },
-          filteredPlaces.length > 0 && styles.listContent,
-        ]}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={
-          listSearchQuery.trim().length > 0 ? (
-            <View style={styles.searchEmptyContainer}>
-              <Ionicons
-                name="search-outline"
-                size={36}
-                color={colors.spotTextSecondary}
-                style={{ opacity: 0.4 }}
-              />
-              <Text
-                style={[
-                  styles.searchEmptyTitle,
-                  { color: colors.spotTextPrimary },
-                ]}
-              >
-                No spots found
-              </Text>
-              <Text
-                style={[
-                  styles.searchEmptySubtitle,
-                  { color: colors.spotTextSecondary },
-                ]}
-              >
-                No results for "{listSearchQuery}"
-              </Text>
-            </View>
-          ) : selectedFilter || hasAdvancedFilters ? (
-            <View style={styles.searchEmptyContainer}>
-              <Ionicons
-                name="filter-outline"
-                size={36}
-                color={colors.spotTextSecondary}
-                style={{ opacity: 0.4 }}
-              />
-              <Text
-                style={[
-                  styles.searchEmptyTitle,
-                  { color: colors.spotTextPrimary },
-                ]}
-              >
-                No spots matched
-              </Text>
-              <Text
-                style={[
-                  styles.searchEmptySubtitle,
-                  { color: colors.spotTextSecondary },
-                ]}
-              >
-                Try adjusting or clearing your filters
-              </Text>
-            </View>
-          ) : null
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.spotEmerald}
-          />
-        }
-      />
+      <View style={{ flex: 1, display: viewMode === "map" ? "flex" : "none" }}>
+        <SpotMapView
+          places={filteredPlaces}
+          userLocation={userLocation}
+          locationReady={locationReady}
+          onSelectPlace={(place) => navigation.navigate("PlaceDetail", { place })}
+        />
+      </View>
+      <View style={{ flex: 1, display: viewMode === "list" ? "flex" : "none" }}>
+        <FlatList
+          data={filteredPlaces}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews={true}
+          contentContainerStyle={[
+            { flexGrow: 1 },
+            filteredPlaces.length > 0 && styles.listContent,
+          ]}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            listSearchQuery.trim().length > 0 ? (
+              <View style={styles.searchEmptyContainer}>
+                <Ionicons
+                  name="search-outline"
+                  size={36}
+                  color={colors.spotTextSecondary}
+                  style={{ opacity: 0.4 }}
+                />
+                <Text
+                  style={[
+                    styles.searchEmptyTitle,
+                    { color: colors.spotTextPrimary },
+                  ]}
+                >
+                  No spots found
+                </Text>
+                <Text
+                  style={[
+                    styles.searchEmptySubtitle,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  No results for "{listSearchQuery}"
+                </Text>
+              </View>
+            ) : selectedFilter || hasAdvancedFilters ? (
+              <View style={styles.searchEmptyContainer}>
+                <Ionicons
+                  name="filter-outline"
+                  size={36}
+                  color={colors.spotTextSecondary}
+                  style={{ opacity: 0.4 }}
+                />
+                <Text
+                  style={[
+                    styles.searchEmptyTitle,
+                    { color: colors.spotTextPrimary },
+                  ]}
+                >
+                  No spots matched
+                </Text>
+                <Text
+                  style={[
+                    styles.searchEmptySubtitle,
+                    { color: colors.spotTextSecondary },
+                  ]}
+                >
+                  Try adjusting or clearing your filters
+                </Text>
+              </View>
+            ) : null
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.spotEmerald}
+            />
+          }
+        />
+      </View>
 
       <EditNoteModal
         visible={editingPlace !== null}
@@ -741,6 +768,10 @@ function getDistanceKm(
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function stripAccents(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 const styles = StyleSheet.create({

@@ -18,19 +18,35 @@ import { PlaceCategory } from '@/types';
  * 7. Category filter shows only matching category
  * 8. Text search + category filter combine (intersection)
  *
+ * === Accent-insensitive search ===
+ * 9. Matches accented names with unaccented query
+ * 10. Matches unaccented names with accented query
+ * 11. Matches mixed-accent place names
+ * 12. Works across all searchable fields (name, note, address, cuisine)
+ *
+ * === Search bar visibility (Fix 2) ===
+ * 13. Search bar visible in list mode
+ * 14. Search bar visible in map mode
+ * 15. Search query persists when toggling between list and map
+ *
+ * === View toggling (Fix 3) ===
+ * 16. Both FlatList and SpotMapView are rendered simultaneously
+ * 17. Toggling to map hides list but keeps it mounted
+ * 18. Toggling back to list shows list again
+ *
  * === Empty states ===
- * 9. Shows empty state when no places saved
- * 10. Shows "No spots found" when search matches nothing
- * 11. Shows "No spots matched" when filter matches nothing
+ * 19. Shows empty state when no places saved
+ * 20. Shows "No spots found" when search matches nothing
+ * 21. Shows "No spots matched" when filter matches nothing
  *
  * === FlatList tuning ===
- * 12. FlatList has initialNumToRender prop set
- * 13. FlatList has windowSize prop set
- * 14. FlatList has removeClippedSubviews enabled
+ * 22. FlatList has initialNumToRender prop set
+ * 23. FlatList has windowSize prop set
+ * 24. FlatList has removeClippedSubviews enabled
  *
  * === Deletion flow ===
- * 15. Delete confirmation triggers exit animation then actual delete
- * 16. Multiple concurrent deletions tracked correctly
+ * 25. Delete confirmation triggers exit animation then actual delete
+ * 26. Multiple concurrent deletions tracked correctly
  */
 
 // ── Mocks ──
@@ -145,6 +161,17 @@ jest.mock('@/screens/list/EditNoteModal', () => {
   return { EditNoteModal: () => <View testID="edit-note-modal" /> };
 });
 
+jest.mock('@/components/SpotMapView', () => {
+  const { View } = require('react-native');
+  return {
+    SpotMapView: (props: any) => <View testID="spot-map-view" {...props} />,
+  };
+});
+
+jest.mock('@/utils/openingHours', () => ({
+  isPlaceOpenNow: () => null,
+}));
+
 // ── Helpers ──
 
 function makePlace(overrides: Partial<SavedPlaceLocal> = {}): SavedPlaceLocal {
@@ -167,6 +194,7 @@ function makePlace(overrides: Partial<SavedPlaceLocal> = {}): SavedPlaceLocal {
     website: null,
     phone_number: null,
     opening_hours: null,
+    opening_hours_periods: null,
     ...overrides,
   };
 }
@@ -443,6 +471,285 @@ describe('SavedPlacesListScreen', () => {
       const { getByText } = render(<SavedPlacesListScreen />);
       expect(getByText('No Coords')).toBeTruthy();
       expect(getByText('Has Coords')).toBeTruthy();
+    });
+  });
+
+  // ── Accent-insensitive search ──
+
+  describe('accent-insensitive search', () => {
+    it('matches accented name with unaccented query', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Éconofitness' }),
+        makePlace({ id: '2', name: 'Pizza Hut' }),
+      ]);
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'econofitness');
+      expect(getByText('Éconofitness')).toBeTruthy();
+      expect(queryByText('Pizza Hut')).toBeNull();
+    });
+
+    it('matches accented uppercase name with lowercase unaccented query', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'ALLÔ MON COCO' }),
+        makePlace({ id: '2', name: 'Burger King' }),
+      ]);
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'allo mon coco');
+      expect(getByText('ALLÔ MON COCO')).toBeTruthy();
+      expect(queryByText('Burger King')).toBeNull();
+    });
+
+    it('matches when query itself has accents', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Café Milano' }),
+      ]);
+      const { getByPlaceholderText, getByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'café');
+      expect(getByText('Café Milano')).toBeTruthy();
+    });
+
+    it('matches accented query against unaccented name', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Cafe Milano' }),
+      ]);
+      const { getByPlaceholderText, getByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'café');
+      expect(getByText('Cafe Milano')).toBeTruthy();
+    });
+
+    it('accent-insensitive search works on note_text', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Place A', note_text: 'Très bon crème brûlée' }),
+        makePlace({ id: '2', name: 'Place B', note_text: 'decent food' }),
+      ]);
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'creme brulee');
+      expect(getByText('Place A')).toBeTruthy();
+      expect(queryByText('Place B')).toBeNull();
+    });
+
+    it('accent-insensitive search works on address', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Place A', address: '123 Rue Saint-André' }),
+        makePlace({ id: '2', name: 'Place B', address: '456 Main St' }),
+      ]);
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'saint-andre');
+      expect(getByText('Place A')).toBeTruthy();
+      expect(queryByText('Place B')).toBeNull();
+    });
+
+    it('accent-insensitive search works on cuisine', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Place A', cuisine: 'Québécois' }),
+        makePlace({ id: '2', name: 'Place B', cuisine: 'Italian' }),
+      ]);
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'quebecois');
+      expect(getByText('Place A')).toBeTruthy();
+      expect(queryByText('Place B')).toBeNull();
+    });
+
+    it('handles characters with multiple diacritics', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Phở Bò' }),
+      ]);
+      const { getByPlaceholderText, getByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      // FLAG: The current stripAccents implementation uses NFD + regex for combining marks.
+      // Characters like ở (o + horn + hook above) decompose to o + combining horn + combining
+      // hook above. The regex [\u0300-\u036f] strips standard combining diacriticals but
+      // the combining horn (U+031B) is within that range, so this should work. However,
+      // some Vietnamese characters use marks outside this range in certain Unicode
+      // normalizations. If this test fails, the regex range may need extending.
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'pho bo');
+      expect(getByText('Phở Bò')).toBeTruthy();
+    });
+  });
+
+  // ── Search bar visibility across view modes (Fix 2) ──
+
+  describe('search bar in map mode', () => {
+    it('search bar is visible in list mode', () => {
+      setPlaces([makePlace({ id: '1' })]);
+      const { getByPlaceholderText } = render(<SavedPlacesListScreen />);
+      expect(getByPlaceholderText('Search your spots...')).toBeTruthy();
+    });
+
+    it('search bar is visible in map mode', () => {
+      setPlaces([makePlace({ id: '1' })]);
+      const { getByPlaceholderText, getByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      // Toggle to map mode (icon mock renders the icon name as text)
+      fireEvent.press(getByText('map-outline'));
+
+      expect(getByPlaceholderText('Search your spots...')).toBeTruthy();
+    });
+
+    it('search query persists when toggling from list to map and back', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Pizza Place' }),
+        makePlace({ id: '2', name: 'Sushi Bar' }),
+      ]);
+      const { getByPlaceholderText, getByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      // Type query in list mode
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'pizza');
+
+      // Toggle to map
+      fireEvent.press(getByText('map-outline'));
+
+      // Search bar should still show query
+      const searchInput = getByPlaceholderText('Search your spots...');
+      expect(searchInput.props.value).toBe('pizza');
+
+      // Toggle back to list
+      fireEvent.press(getByText('list-outline'));
+
+      // Query should still be there
+      expect(getByPlaceholderText('Search your spots...').props.value).toBe('pizza');
+      // And filtering should still be active
+      expect(getByText('Pizza Place')).toBeTruthy();
+    });
+
+    it('can clear search query while in map mode', () => {
+      setPlaces([makePlace({ id: '1', name: 'Pizza Place' })]);
+      const { getByPlaceholderText, getByText } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      // Type query
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'pizza');
+
+      // Toggle to map
+      fireEvent.press(getByText('map-outline'));
+
+      // Clear via X button
+      fireEvent.press(getByText('close-circle'));
+
+      // Query should be empty
+      expect(getByPlaceholderText('Search your spots...').props.value).toBe('');
+    });
+  });
+
+  // ── View toggling — both views rendered simultaneously (Fix 3) ──
+
+  describe('simultaneous view rendering', () => {
+    it('renders both SpotMapView and FlatList at the same time', () => {
+      setPlaces([makePlace({ id: '1' })]);
+      const { getByTestId, UNSAFE_getByType } = render(
+        <SavedPlacesListScreen />,
+      );
+      const { FlatList } = require('react-native');
+
+      // Map is inside display:'none' in list mode, so use includeHiddenElements
+      expect(getByTestId('spot-map-view', { includeHiddenElements: true })).toBeTruthy();
+      expect(UNSAFE_getByType(FlatList)).toBeTruthy();
+    });
+
+    it('map container is hidden in list mode', () => {
+      setPlaces([makePlace({ id: '1' })]);
+      const { getByTestId, UNSAFE_getByType } = render(<SavedPlacesListScreen />);
+      const { FlatList } = require('react-native');
+
+      // In list mode, the FlatList container should be visible
+      const flatList = UNSAFE_getByType(FlatList);
+      const listContainer = flatList.parent;
+      expect(listContainer?.props.style).toEqual(
+        expect.objectContaining({ display: 'flex' }),
+      );
+
+      // And the map should exist but be hidden (found via includeHiddenElements)
+      const mapView = getByTestId('spot-map-view', { includeHiddenElements: true });
+      expect(mapView).toBeTruthy();
+    });
+
+    it('list container is hidden in map mode', () => {
+      setPlaces([makePlace({ id: '1' })]);
+      const { getByText, UNSAFE_getByType } = render(
+        <SavedPlacesListScreen />,
+      );
+      const { FlatList } = require('react-native');
+
+      // Toggle to map
+      fireEvent.press(getByText('map-outline'));
+
+      const flatList = UNSAFE_getByType(FlatList);
+      const listContainer = flatList.parent;
+      expect(listContainer?.props.style).toEqual(
+        expect.objectContaining({ display: 'none' }),
+      );
+    });
+
+    it('toggling to map shows map and hides list container', () => {
+      setPlaces([makePlace({ id: '1' })]);
+      const { getByTestId, getByText, UNSAFE_getByType, queryByTestId } = render(
+        <SavedPlacesListScreen />,
+      );
+      const { FlatList } = require('react-native');
+
+      // In list mode, map testID is not findable without includeHiddenElements
+      expect(queryByTestId('spot-map-view')).toBeNull();
+
+      // Toggle to map
+      fireEvent.press(getByText('map-outline'));
+
+      // Map testID is now findable (container is display: 'flex')
+      expect(getByTestId('spot-map-view')).toBeTruthy();
+
+      // List container should be hidden
+      const flatList = UNSAFE_getByType(FlatList);
+      const listContainer = flatList.parent;
+      expect(listContainer?.props.style).toEqual(
+        expect.objectContaining({ display: 'none' }),
+      );
+    });
+
+    it('filtered places are passed to SpotMapView', () => {
+      setPlaces([
+        makePlace({ id: '1', name: 'Pizza Palace' }),
+        makePlace({ id: '2', name: 'Sushi Bar' }),
+      ]);
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <SavedPlacesListScreen />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Search your spots...'), 'pizza');
+
+      // Toggle to map mode so SpotMapView container is visible
+      fireEvent.press(getByText('map-outline'));
+
+      const mapView = getByTestId('spot-map-view');
+      // SpotMapView should receive the filtered places
+      expect(mapView.props.places).toHaveLength(1);
+      expect(mapView.props.places[0].name).toBe('Pizza Palace');
     });
   });
 });

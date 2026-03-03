@@ -5,29 +5,17 @@ import { useSpotColors } from '../theme/colors';
 import { SpotTypography } from '../theme/typography';
 import { relativeDate } from '../utils/relativeDate';
 import type { SavedPlaceLocal } from '../types';
+import { CATEGORY_CONFIG } from '../theme/categoryColors';
 
 interface PlaceCardProps {
   place: SavedPlaceLocal;
 }
 
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-const CATEGORY_CONFIG: Record<string, { icon: IoniconName; size: number; bg: string; color: string }> = {
-  Restaurant:    { icon: 'restaurant-outline', size: 18, bg: 'rgba(251, 146, 60,  0.12)', color: '#EA7C2A' },
-  Cafe:          { icon: 'cafe-outline',        size: 21, bg: 'rgba(161, 95,  55,  0.12)', color: '#A15F37' },
-  Bar:           { icon: 'wine-outline',         size: 21, bg: 'rgba(139, 92,  246, 0.12)', color: '#7C3AED' },
-  Dessert:       { icon: 'ice-cream-outline',    size: 21, bg: 'rgba(236, 72,  153, 0.12)', color: '#DB2777' },
-  Activity:      { icon: 'bicycle-outline',      size: 20, bg: 'rgba(59,  130, 246, 0.12)', color: '#2563EB' },
-  Entertainment: { icon: 'film-outline',         size: 20, bg: 'rgba(20,  184, 166, 0.12)', color: '#0D9488' },
-  Gym:           { icon: 'barbell-outline',      size: 20, bg: 'rgba(239, 68,  68,  0.12)', color: '#EF4444' },
-  Other:         { icon: 'grid-outline',         size: 20, bg: 'rgba(107, 114, 128, 0.10)', color: '#6B7280' },
-};
-
 export const PlaceCard = React.memo(function PlaceCard({ place }: PlaceCardProps) {
   const colors = useSpotColors();
 
   const config = place.category
-    ? (CATEGORY_CONFIG[place.category] ?? CATEGORY_CONFIG.Other)
+    ? (CATEGORY_CONFIG[place.category as keyof typeof CATEGORY_CONFIG] ?? CATEGORY_CONFIG.Other)
     : CATEGORY_CONFIG.Other;
 
   const accessibilityParts: string[] = [];
@@ -45,7 +33,7 @@ export const PlaceCard = React.memo(function PlaceCard({ place }: PlaceCardProps
     >
       {/* Icon */}
       <View style={[styles.iconContainer, { backgroundColor: config.bg }]}>
-        <Ionicons name={config.icon} size={config.size} color={config.color} />
+        <Ionicons name={config.icon} size={config.iconSize} color={config.color} />
       </View>
 
       {/* Content */}
