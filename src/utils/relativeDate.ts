@@ -7,7 +7,13 @@ const YEAR = 31536000;
 
 export function relativeDate(dateString: string): string {
   const now = Date.now();
-  const then = new Date(dateString).getTime();
+  // Date-only strings (YYYY-MM-DD) are parsed as UTC midnight by default,
+  // which causes off-by-one-day bugs in negative UTC offsets. Append a time
+  // component to force local midnight parsing instead.
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
+    ? `${dateString}T00:00:00`
+    : dateString;
+  const then = new Date(normalized).getTime();
   const seconds = Math.floor((now - then) / 1000);
 
   if (seconds < MINUTE) return 'just now';

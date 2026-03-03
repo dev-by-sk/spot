@@ -45,7 +45,7 @@ export function EditNoteModal({
   useEffect(() => {
     if (visible) {
       setNoteText(initialNote);
-      setDateVisited(initialDateVisited ? new Date(initialDateVisited) : null);
+      setDateVisited(initialDateVisited ? new Date(`${initialDateVisited}T00:00:00`) : null);
       setShowDatePicker(false);
     }
   }, [visible, initialNote, initialDateVisited]);
