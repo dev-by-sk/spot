@@ -6,6 +6,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 > - **[BUG]** — The current code likely fails this scenario
 > - **[FRAGILE]** — Works today but relies on fragile assumptions
 > - **[SECURITY]** — Security-relevant test case
+> - ~~**[FIXED]**~~ — Previously flagged, now resolved (strikethrough)
 
 ---
 
@@ -88,7 +89,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | 2.2.4 | Push with pending deletion that fails (network error) | Error `console.warn`'d; pending deletion stays in table for next sync | |
 | 2.2.5 | Push with local-only place (not on remote) — cache exists | `upsertPlaceCache` then `uploadSavedPlace` called | |
 | 2.2.6 | Push with local-only place — cache is `null` (somehow deleted) | `upsertPlaceCache` skipped; `uploadSavedPlace` called; server gets a `saved_places` row with dangling `google_place_id` | **[BUG]** No guard for missing cache (`syncService.ts:86-93`) |
-| 2.2.7 | Push where `uploadSavedPlace` fails because ID already exists on server | `insert` throws unique constraint; error caught and `console.warn`'d; retried every sync forever | **[BUG]** Should use `upsert` or detect constraint violation (`supabaseService.ts:78-81`) |
+| 2.2.7 | ~~Push where `uploadSavedPlace` fails because ID already exists on server~~ | ~~`uploadSavedPlace` now uses `upsert` — idempotent~~ | ~~**[FIXED]**~~ |
 | 2.2.8 | Push with note divergence (local ≠ remote) | Local note pushed to remote | |
 | 2.2.9 | Note edited on two devices while offline, both sync | Last-push-wins; no conflict detection | **[BUG]** No `updated_at` timestamp — silent data loss on multi-device note edits |
 | 2.2.10 | `fetchSavedPlaces` called twice per sync cycle (once in pull, once in push) | Two full-table fetches | **[FRAGILE]** Doubled network traffic; should cache result or share between pull and push |
@@ -116,7 +117,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | 3.1.3 | `signInWithGoogle(idToken, accessToken)` | Calls `signInWithIdToken` | **[BUG]** Dead code — never called anywhere in the codebase; actual auth uses PKCE flow in AuthContext |
 | 3.1.4 | `getUserProfile` — calls `getSession` again despite caller already having session | Redundant session fetch | **[FRAGILE]** Double round-trip in `AuthContext.checkSession` (`supabaseService.ts:54-55`) |
 | 3.1.5 | `fetchSavedPlaces` with no `.eq('user_id', ...)` filter | Returns all rows visible to authenticated session (RLS-dependent) | **[SECURITY]** No client-side defense-in-depth; RLS misconfiguration exposes all users' data |
-| 3.1.6 | `uploadSavedPlace` with already-existing `id` | Throws unique constraint error | **[BUG]** Should use `upsert` for idempotent retries |
+| 3.1.6 | ~~`uploadSavedPlace` with already-existing `id`~~ | ~~Now uses `upsert` for idempotent retries~~ | ~~**[FIXED]**~~ |
 | 3.1.7 | `updateSavedPlaceNote` — `.eq('id', id)` with no `user_id` guard | Update succeeds if RLS allows | **[SECURITY]** No client-side ownership check |
 | 3.1.8 | `deleteSavedPlace` — `.eq('id', id)` with no `user_id` guard | Delete succeeds if RLS allows; no rows-affected check | **[SECURITY]** No client-side ownership check; phantom deletes succeed silently |
 | 3.1.9 | `upsertPlaceCache` overwrites fresher local cache with stale remote data | Always overwrites; no `last_refreshed` comparison | **[BUG]** Stale cache can overwrite fresh data |
@@ -136,9 +137,9 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | 4.1.1 | `autocomplete` rate limited (> 10 requests in 10s) | Throws `SpotError.rateLimited()` | |
 | 4.1.2 | `getPlaceDetails` rate limited (> 30 requests in 60s) | Throws `SpotError.rateLimited()` | |
 | 4.1.3 | `autocomplete` uses only autocomplete limiter (not general limiter) | `skipGeneralLimit = true` passed to `authenticatedRequest` | |
-| 4.1.4 | `authenticatedRequest` — session token captured before retry loop | On retry, stale (potentially expired) token is reused | **[BUG]** Token should be re-fetched inside the retry lambda (`googlePlacesService.ts:32-41`) |
+| 4.1.4 | ~~`authenticatedRequest` — session token captured before retry loop~~ | ~~Token now re-fetched inside retry lambda~~ | ~~**[FIXED]**~~ |
 | 4.1.5 | Proxy returns HTTP 429 | Throws `SpotError.rateLimited()`; `retryWithBackoff` does NOT retry (rate-limited is non-retryable) | |
-| 4.1.6 | Proxy returns HTTP 401 (expired token) | Throws `SpotError.networkError('Request failed')`; retried twice unnecessarily | **[BUG]** Server 401 generates generic network error which IS retryable — auth failures retried 2× |
+| 4.1.6 | ~~Proxy returns HTTP 401 (expired token)~~ | ~~Now throws 'Not authenticated' which is non-retryable~~ | ~~**[FIXED]**~~ |
 | 4.1.7 | Proxy returns HTTP 500 | Throws generic `SpotError.networkError('Request failed')`; retried | |
 | 4.1.8 | `autocomplete` with empty query | Caller (`PlacesContext.search`) returns early; `autocomplete` itself has no guard | |
 | 4.1.9 | `getPlaceDetails` response with `lat: 0, lng: 0` (missing geometry) | Stored as valid coordinates | **[FRAGILE]** 0,0 is indistinguishable from "no data"; maps render in Gulf of Guinea |
@@ -158,7 +159,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | # | Scenario | Expected | Flag |
 |---|----------|----------|------|
 | 5.1.1 | `extractPlaceFromURL` with valid TikTok URL | oEmbed fetch → metadata → LLM extraction → Google Places search → return first result | |
-| 5.1.2 | LLM edge function invocation uses name `'extract-tiktok'` | Function called with wrong name | **[BUG]** Deployed function is `extract-place`; this call always 404s (`shareExtractionService.ts:144`) |
+| 5.1.2 | ~~LLM edge function invocation uses name `'extract-tiktok'`~~ | ~~Now invokes correct name `'extract-place'`~~ | ~~**[FIXED]**~~ |
 | 5.1.3 | `fetchPageMetadata` with `file://` scheme URL | `fetch()` may honor local file access | **[SECURITY]** No URL scheme validation/allowlist (`shareExtractionService.ts:83`) |
 | 5.1.4 | `fetchPageMetadata` with `content-length` header missing, response is 50MB | Full body buffered into memory before 1MB slice | **[SECURITY]** Memory exhaustion / OOM risk (`shareExtractionService.ts:96-97`) |
 | 5.1.5 | `fetchPageMetadata` with `content-length` header lying (says 100 bytes, sends 50MB) | `content-length` check passes; full body loaded | **[SECURITY]** Content-length header can be spoofed |
@@ -177,7 +178,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 
 | # | Scenario | Expected | Flag |
 |---|----------|----------|------|
-| 5.2.1 | Share TikTok URL → oEmbed → LLM → Google Places → save | Place extracted and saved | **[BUG]** Blocked by wrong edge function name |
+| 5.2.1 | ~~Share TikTok URL → oEmbed → LLM → Google Places → save~~ | ~~Edge function name corrected; pipeline unblocked~~ | ~~**[FIXED]**~~ |
 | 5.2.2 | Share URL while offline | `ShareContext` shows "You're offline" error | |
 | 5.2.3 | Share URL → extraction succeeds → save fails → retry | No retry mechanism for failed saves | **[FRAGILE]** |
 | 5.2.4 | Share URL → user cancels → share again | `clearShare()` resets all state; new extraction starts | |
@@ -200,9 +201,9 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | 6.1.6 | Crypto polyfill — `digest` decodes bytes as UTF-8 | Works with ASCII base64url verifiers; breaks with raw byte verifiers | **[FRAGILE]** Depends on `supabase-js` always generating ASCII verifiers (`AuthContext.tsx:84-90`) |
 | 6.1.7 | `signInWithGoogle` double-tap (button tapped twice quickly) | Two `WebBrowser` sessions could open concurrently | **[BUG]** No guard against double invocation while `isSigningIn` is `true` (React state is async) |
 | 6.1.8 | OAuth callback URL logged to console | `result.url` containing auth code is printed | **[SECURITY]** Auth code in console output (`AuthContext.tsx:134`) |
-| 6.1.9 | `handleSignOut` — local SQLite data NOT cleared | `saved_places`, `place_cache`, `pending_deletions` all retained | **[SECURITY]** Previous user's data persists on device after sign-out |
+| 6.1.9 | ~~`handleSignOut` — local SQLite data NOT cleared~~ | ~~`clearAllLocalData()` now called on sign-out~~ | ~~**[FIXED]**~~ |
 | 6.1.10 | `deleteAccount` — `softDeleteAccount` succeeds, then `signOut` inside it throws | Account deleted on server; client still shows authenticated; user sees "Failed to delete account" | **[BUG]** Re-trying calls RPC again on already-deleted account |
-| 6.1.11 | `deleteAccount` — local SQLite data NOT cleared | All local data retained after account deletion | **[SECURITY]** Previous user's data persists on device after account deletion |
+| 6.1.11 | ~~`deleteAccount` — local SQLite data NOT cleared~~ | ~~`clearAllLocalData()` now called on account deletion~~ | ~~**[FIXED]**~~ |
 | 6.1.12 | Sign out → sign in as different user → before first `syncPlaces` | `useSavedPlaces` may briefly show previous user's data from initial `places: []` state | **[FRAGILE]** Data from previous session visible until `refresh(userId)` runs |
 
 ---
@@ -217,7 +218,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 |---|----------|----------|------|
 | 7.1.1 | Save a new place (happy path) | Duplicate check → local cache upsert → local insert → refresh → remote push | |
 | 7.1.2 | Save a duplicate place | Throws `SpotError.duplicatePlace()` | |
-| 7.1.3 | Two concurrent `savePlace` calls for the same `google_place_id` | Both pass `isDuplicatePlace` check; both call `insertLocalSavedPlace` (`INSERT OR IGNORE`); first insert wins, second is silent no-op; but BOTH call `uploadSavedPlace` on server | **[BUG]** TOCTOU race — `isDuplicatePlace` not transactional with `insertLocalSavedPlace` (`PlacesContext.tsx:204-219`) |
+| 7.1.3 | ~~Two concurrent `savePlace` calls for the same `google_place_id`~~ | ~~`savingPlaceIdsRef` mutex now blocks concurrent saves for same place~~ | ~~**[FIXED]**~~ |
 | 7.1.4 | Remote push fails (network error) after local save | Place saved locally; `console.warn` logged; no retry queue | **[FRAGILE]** Data exists only locally until next `pushToRemote`; if app deleted before next sync, data lost |
 | 7.1.5 | `upsertPlaceCache` succeeds but `uploadSavedPlace` fails | Remote `place_cache` has entry but no `saved_places` row | **[BUG]** Partial remote state; self-heals on next sync but inconsistent in the window |
 
@@ -226,7 +227,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | # | Scenario | Expected | Flag |
 |---|----------|----------|------|
 | 7.2.1 | Delete place (happy path) | Local delete → mark pending → refresh → remote delete → clear pending | |
-| 7.2.2 | Delete when `currentUserIdRef.current` is `null` (no prior sync) | `refreshPlaces` never called; deleted place remains visible in UI | **[BUG]** Ref only set in `syncPlaces`; first-session deletes don't update UI (`PlacesContext.tsx:264-266`) |
+| 7.2.2 | ~~Delete when `currentUserIdRef.current` is `null` (no prior sync)~~ | ~~Now falls back to session userId~~ | ~~**[FIXED]**~~ |
 | 7.2.3 | Remote delete fails | Pending deletion preserved; will retry on next `pushToRemote` | |
 | 7.2.4 | `deleteLocalSavedPlace` succeeds but `markPendingDeletion` fails (disk full) | Item gone locally; pending not recorded; `pullFromRemote` resurrects the deleted item | **[BUG]** No atomicity between delete and mark-pending |
 
@@ -235,7 +236,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | # | Scenario | Expected | Flag |
 |---|----------|----------|------|
 | 7.3.1 | Update note (happy path) | Local update → refresh → remote update | |
-| 7.3.2 | Update note when `currentUserIdRef.current` is `null` | `refreshPlaces` skipped; UI doesn't reflect update | **[BUG]** Same ref issue as delete (`PlacesContext.tsx:293-295`) |
+| 7.3.2 | ~~Update note when `currentUserIdRef.current` is `null`~~ | ~~Now falls back to session userId~~ | ~~**[FIXED]**~~ |
 | 7.3.3 | Remote note update fails | `console.warn`; no pending-update queue | **[FRAGILE]** Note divergence resolved on next `pushToRemote` note comparison |
 
 ### 7.4 Unit Tests — `syncPlaces`
@@ -297,7 +298,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | # | Scenario | Expected | Flag |
 |---|----------|----------|------|
 | 8.3.1 | `getPlaceDetails` returns `null` (error) | Loading spinner disappears; no error message shown to user | **[BUG]** Silent failure (`SearchScreen.tsx:104-109`) |
-| 8.3.2 | `getPlaceDetails` throws (exception instead of `null`) | `loadingItemId` never reset to `null`; all result taps permanently blocked | **[BUG]** No `finally` block to reset `loadingItemId` (`SearchScreen.tsx:100-112`) |
+| 8.3.2 | ~~`getPlaceDetails` throws (exception instead of `null`)~~ | ~~`try/catch/finally` now resets `loadingItemId`~~ | ~~**[FIXED]**~~ |
 | 8.3.3 | Switch tabs away from Search | Search query silently cleared | **[FRAGILE]** May surprise users who switch briefly and expect to return to results |
 | 8.3.4 | `InteractionManager` imported but unused | Dead import | |
 | 8.3.5 | During debounce window: `searchQuery` non-empty, `debouncedQuery` still empty | Empty `Pressable` renders instead of loading indicator | **[FRAGILE]** Visual glitch during typing |
@@ -404,7 +405,7 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 
 | # | Scenario | Expected | Flag |
 |---|----------|----------|------|
-| 10.4.1 | Share TikTok link → oEmbed → LLM extraction → Google Places → save | Full pipeline works end-to-end | **[BUG]** Blocked by wrong edge function name (`extract-tiktok` vs `extract-place`) |
+| 10.4.1 | ~~Share TikTok link → oEmbed → LLM extraction → Google Places → save~~ | ~~Full pipeline works end-to-end; edge function name corrected~~ | ~~**[FIXED]**~~ |
 | 10.4.2 | Share Instagram link → oEmbed fails (401) → HTML scrape → LLM → search → save | Falls through to HTML metadata | **[FRAGILE]** Instagram scraping increasingly unreliable |
 | 10.4.3 | Share generic restaurant blog post → HTML scrape → LLM → search → save | LLM extracts place name from `og:title` and `og:description` | |
 | 10.4.4 | Share link with no place content → LLM returns `null` | `extractPlaceFromURL` returns `null`; UI shows "Couldn't find a place from that link." | |
@@ -416,8 +417,8 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 
 | # | Scenario | Expected | Flag |
 |---|----------|----------|------|
-| 10.6.1 | Share intent URL (`spot://dataUrl=...`) on cold start | `getInitialURL` returns `null`; React Navigation does NOT consume URL; expo-share-intent handles extraction | [FIXED] |
-| 10.6.2 | Share intent URL while app is foregrounded | `subscribe` filters URL; listener NOT called; expo-share-intent handles extraction | [FIXED] |
+| 10.6.1 | ~~Share intent URL (`spot://dataUrl=...`) on cold start~~ | ~~`getInitialURL` returns `null`; React Navigation does NOT consume URL; expo-share-intent handles extraction~~ | ~~**[FIXED]**~~ |
+| 10.6.2 | ~~Share intent URL while app is foregrounded~~ | ~~`subscribe` filters URL; listener NOT called; expo-share-intent handles extraction~~ | ~~**[FIXED]**~~ |
 | 10.6.3 | Normal deep link (`spot://search`) on cold start | `getInitialURL` returns URL; React Navigation navigates to Search tab | |
 | 10.6.4 | OAuth callback (`spot://auth-callback?code=...`) while app foregrounded | `subscribe` forwards URL to listener; React Navigation handles it | |
 | 10.6.5 | Share intent URL with `dataUrl=` as substring of a larger param name (e.g. `spot://myDataUrl=foo`) | Filtered by `includes('dataUrl=')` — false positive | **[FRAGILE]** Unlikely but `includes` is a broad match; no URL parsing |
@@ -431,27 +432,27 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 |---|----------|----------|------|
 | 10.5.1 | Fresh install → Google Sign-In → PKCE flow → session established → initial sync | User authenticated; places synced from server | |
 | 10.5.2 | App cold start with existing session → `checkSession` → auto-sync | Session validated; places refreshed | |
-| 10.5.3 | Session expires mid-use → API call fails → retry with stale token → fails again | User sees generic "Request failed" error | **[BUG]** Stale token not refreshed inside retry loop |
-| 10.5.4 | Sign out → sign in as different user | Local SQLite data from previous user still present but filtered by `user_id` | **[SECURITY]** `place_cache` table is not user-scoped — previous user's cached places remain |
+| 10.5.3 | ~~Session expires mid-use → API call fails → retry with stale token → fails again~~ | ~~Token now re-fetched inside retry loop~~ | ~~**[FIXED]**~~ |
+| 10.5.4 | ~~Sign out → sign in as different user~~ | ~~`clearAllLocalData()` now called on sign-out; no stale data~~ | ~~**[FIXED]**~~ |
 | 10.5.5 | Delete account → server soft-deletes → `signOut` inside `softDeleteAccount` fails | Account deleted on server; client still authenticated; "Failed to delete" shown | **[BUG]** Partial failure state |
 
 ---
 
 ## Summary of Critical Issues by Severity
 
-### High — Likely Broken in Production
+### High — ~~All Fixed~~
 
-1. **Wrong edge function name** — share extraction LLM step always 404s (`shareExtractionService.ts:144`)
-2. **Stale auth token in retry loop** — expired tokens not refreshed between retries (`googlePlacesService.ts:32-41`)
-3. **`currentUserIdRef` null** — delete/updateNote don't refresh UI before first sync (`PlacesContext.tsx:264-266, 293-295`)
-4. **`getPlaceDetails` throw leaves taps permanently blocked** — no `finally` to reset `loadingItemId` (`SearchScreen.tsx:100-112`)
+1. ~~**Wrong edge function name** — share extraction LLM step always 404s~~ (5.1.2)
+2. ~~**Stale auth token in retry loop** — expired tokens not refreshed between retries~~ (4.1.4)
+3. ~~**`currentUserIdRef` null** — delete/updateNote don't refresh UI before first sync~~ (7.2.2, 7.3.2)
+4. ~~**`getPlaceDetails` throw leaves taps permanently blocked** — no `finally` to reset `loadingItemId`~~ (8.3.2)
 
 ### Medium — Data Integrity / Security Risks
 
-5. **No local data wipe on sign-out/delete** — previous user's data persists (`AuthContext.tsx:174-191, 193-213`)
+5. ~~**No local data wipe on sign-out/delete** — previous user's data persists~~ (6.1.9, 6.1.11)
 6. **No `user_id` filter on Supabase queries** — relies entirely on RLS (`supabaseService.ts:69-76, 83-93, 95-101`)
-7. **TOCTOU duplicate race** — concurrent saves can bypass duplicate check (`PlacesContext.tsx:204-219`)
-8. **`uploadSavedPlace` uses `insert` not `upsert`** — retried syncs fail permanently on existing IDs (`supabaseService.ts:78-81`)
+7. ~~**TOCTOU duplicate race** — concurrent saves can bypass duplicate check~~ (7.1.3)
+8. ~~**`uploadSavedPlace` uses `insert` not `upsert`** — retried syncs fail permanently on existing IDs~~ (3.1.6)
 9. **Multi-device note conflict** — last-push-wins with no `updated_at` (`syncService.ts:112-120`)
 10. **Prompt injection** — crafted page titles sent directly to LLM (`shareExtractionService.ts:138-139`)
 11. **Crypto polyfill zeroed buffers** — predictable PKCE verifier if `getRandomValues` absent (`AuthContext.tsx:97-99`)
@@ -467,43 +468,3 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 18. **Rate limiter resets on app restart** — can exceed server-side limits (`googlePlacesService.ts:13-14`)
 19. **Auth code logged to console** (`AuthContext.tsx:134`)
 20. **PII in console.log** — API responses logged without `__DEV__` guard (`googlePlacesService.ts:56`)
-
-
-THESE ARE FIXED:
-Got it! Here's a clean summary of your fix/severity status from your notes:
-
-High Severity (4/4 fixed)
-
-4.1.4 — Google Places Service: authenticatedRequest token re-fetch inside retry loop
-
-4.1.6 — Google Places Service: Proxy HTTP 401 (expired token)
-
-5.1.2 — Share Extraction Service: Correct edge function name 'extract-place'
-
-7.2.2 — Places Context: Delete fallback to session userId (currentUserIdRef)
-
-7.3.2 — Places Context: Update note fallback to session userId (currentUserIdRef)
-
-8.3.2 — SearchScreen: Added try/catch/finally to handleResultPress
-
-Medium Severity (4/8 fixed)
-
-3.1.6 — Supabase Service: uploadSavedPlace changed insert → upsert
-
-6.1.9 — Auth Context: handleSignOut clears local SQLite data (clearAllLocalData)
-
-6.1.11 — Auth Context: deleteAccount clears local SQLite data (clearAllLocalData)
-
-7.1.3 — Places Context: Added savingPlaceIdsRef mutex
-
-Integration Scenarios Unblocked
-
-2.2.7 — Sync Service: Push with existing ID succeeds idempotently
-
-5.2.1 — Share Pipeline: Edge function name corrected
-
-10.4.1 — (Not in the previous MD snippet; presumably another integration scenario)
-
-10.5.3 — (Likewise, integration scenario unblocked)
-
-10.5.4 — (Likewise)
