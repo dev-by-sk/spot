@@ -9,7 +9,7 @@
 
 const mockInvoke = jest.fn();
 
-jest.mock("../../config/supabase", () => ({
+jest.mock("../../src/config/supabase", () => ({
   supabase: {
     functions: {
       invoke: (...args: any[]) => mockInvoke(...args),
@@ -24,7 +24,7 @@ jest.mock("../../config/supabase", () => ({
   SUPABASE_ANON_KEY: "test-anon-key",
 }));
 
-jest.mock("../googlePlacesService", () => ({
+jest.mock("../../src/services/googlePlacesService", () => ({
   searchPlace: jest
     .fn()
     .mockResolvedValue([
@@ -37,11 +37,11 @@ jest.mock("../googlePlacesService", () => ({
     ]),
 }));
 
-jest.mock("../../utils/retry", () => ({
+jest.mock("../../src/utils/retry", () => ({
   retryWithBackoff: (fn: () => Promise<any>) => fn(),
 }));
 
-import { extractPlaceFromURL } from "../shareExtractionService";
+import { extractPlaceFromURL } from "../../src/services/shareExtractionService";
 
 beforeEach(() => {
   jest.clearAllMocks();

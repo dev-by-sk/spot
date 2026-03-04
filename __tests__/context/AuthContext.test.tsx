@@ -9,7 +9,7 @@
  */
 import React from "react";
 import { renderHook, act } from "@testing-library/react-native";
-import { AuthProvider, AuthContext } from "../AuthContext";
+import { AuthProvider, AuthContext } from "../../src/context/AuthContext";
 
 // ── Mocks ──
 
@@ -21,7 +21,7 @@ const mockGetCurrentSession = jest.fn().mockResolvedValue({
   provider: "google",
 });
 
-jest.mock("../../services/supabaseService", () => ({
+jest.mock("../../src/services/supabaseService", () => ({
   getCurrentSession: (...args: any[]) => mockGetCurrentSession(...args),
   signOut: (...args: any[]) => mockSignOut(...args),
   softDeleteAccount: (...args: any[]) => mockSoftDeleteAccount(...args),
@@ -31,7 +31,7 @@ jest.mock("../../services/supabaseService", () => ({
 
 const mockLocalSignOut = jest.fn().mockResolvedValue(undefined);
 
-jest.mock("../../config/supabase", () => ({
+jest.mock("../../src/config/supabase", () => ({
   supabase: {
     auth: {
       signOut: (...args: any[]) => mockLocalSignOut(...args),
@@ -49,7 +49,7 @@ const mockClearAllLocalData = jest.fn().mockResolvedValue(undefined);
 const mockDeleteLocalSavedPlace = jest.fn();
 const mockExecAsync = jest.fn();
 
-jest.mock("../../db/database", () => ({
+jest.mock("../../src/db/database", () => ({
   getDatabase: jest.fn().mockResolvedValue({
     execAsync: (...args: any[]) => mockExecAsync(...args),
     runAsync: jest.fn(),
@@ -59,15 +59,15 @@ jest.mock("../../db/database", () => ({
   clearAllLocalData: (...args: any[]) => mockClearAllLocalData(...args),
 }));
 
-jest.mock("../../hooks/useNetworkStatus", () => ({
+jest.mock("../../src/hooks/useNetworkStatus", () => ({
   useNetworkStatus: () => true,
 }));
 
-jest.mock("../ToastContext", () => ({
+jest.mock("../../src/context/ToastContext", () => ({
   useToast: () => ({ showToast: jest.fn() }),
 }));
 
-jest.mock("../../services/analyticsService", () => ({
+jest.mock("../../src/services/analyticsService", () => ({
   analytics: { track: jest.fn(), identify: jest.fn(), reset: jest.fn() },
   AnalyticsEvent: {
     SignedOut: "signed_out",

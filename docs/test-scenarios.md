@@ -410,6 +410,21 @@ Comprehensive catalog of test scenarios organized by layer. Each section lists u
 | 10.4.4 | Share link with no place content → LLM returns `null` | `extractPlaceFromURL` returns `null`; UI shows "Couldn't find a place from that link." | |
 | 10.4.5 | Share link → extraction succeeds → user saves → duplicate detected | `SpotError.duplicatePlace()` thrown; user sees error toast | |
 
+### 10.6 Deep Linking / Share Intent URL Routing
+
+**Files:** `App.tsx` (linking config), `src/context/ShareContext.tsx`
+
+| # | Scenario | Expected | Flag |
+|---|----------|----------|------|
+| 10.6.1 | Share intent URL (`spot://dataUrl=...`) on cold start | `getInitialURL` returns `null`; React Navigation does NOT consume URL; expo-share-intent handles extraction | [FIXED] |
+| 10.6.2 | Share intent URL while app is foregrounded | `subscribe` filters URL; listener NOT called; expo-share-intent handles extraction | [FIXED] |
+| 10.6.3 | Normal deep link (`spot://search`) on cold start | `getInitialURL` returns URL; React Navigation navigates to Search tab | |
+| 10.6.4 | OAuth callback (`spot://auth-callback?code=...`) while app foregrounded | `subscribe` forwards URL to listener; React Navigation handles it | |
+| 10.6.5 | Share intent URL with `dataUrl=` as substring of a larger param name (e.g. `spot://myDataUrl=foo`) | Filtered by `includes('dataUrl=')` — false positive | **[FRAGILE]** Unlikely but `includes` is a broad match; no URL parsing |
+| 10.6.6 | Share intent URL with different casing (`dataurl=`, `DataUrl=`) | NOT filtered — passes to React Navigation | **[FRAGILE]** Filter is case-sensitive; depends on expo-share-intent always using `dataUrl=` |
+| 10.6.7 | `Linking.getInitialURL()` throws (e.g. native module error) | Unhandled rejection propagates to React Navigation | **[BUG]** No try-catch in `getInitialURL` override |
+| 10.6.8 | Multiple rapid share intents while app is foregrounded | Each URL filtered independently; expo-share-intent receives all | |
+
 ### 10.5 Auth Flow End-to-End
 
 | # | Scenario | Expected | Flag |
