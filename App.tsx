@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { ShareIntentProvider } from 'expo-share-intent';
+import * as Linking from 'expo-linking';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useFonts, PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -14,9 +15,12 @@ import { ShareProvider } from './src/context/ShareContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { navigationRef } from './src/navigation/navigationRef';
 import { analytics } from './src/services/analyticsService';
 
 // Deep linking configuration
+// getInitialURL and subscribe filter out share intent URLs (containing "dataUrl=")
+// so React Navigation doesn't consume them — expo-share-intent handles those instead.
 const linking = {
   prefixes: ['spot://'],
   config: {
@@ -27,6 +31,26 @@ const linking = {
         },
       },
     },
+  },
+  async getInitialURL() {
+    const url = await Linking.getInitialURL();
+    console.log('[Linking] getInitialURL:', url);
+    if (url && url.includes('dataUrl=')) {
+      console.log('[Linking] Filtered share intent URL from React Navigation');
+      return null;
+    }
+    return url;
+  },
+  subscribe(listener: (url: string) => void) {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      console.log('[Linking] Incoming URL:', url);
+      if (url.includes('dataUrl=')) {
+        console.log('[Linking] Filtered share intent URL from React Navigation');
+      } else {
+        listener(url);
+      }
+    });
+    return () => sub.remove();
   },
 };
 
@@ -46,7 +70,7 @@ function ThemedApp() {
   };
 
   return (
-    <NavigationContainer theme={navTheme} linking={linking}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} linking={linking}>
       <RootNavigator />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationContainer>

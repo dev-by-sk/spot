@@ -2,13 +2,7 @@
  * AuthContext and AuthProvider for React Native
  */
 
-import React, {
-  createContext,
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-} from "react";
+import React, { createContext, useState, useCallback, useEffect } from "react";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import {
@@ -22,8 +16,6 @@ import { clearAllLocalData } from "../db/database";
 import { analytics, AnalyticsEvent } from "../services/analyticsService";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useToast } from "./ToastContext";
-
-WebBrowser.maybeCompleteAuthSession();
 
 export interface AuthContextValue {
   isAuthenticated: boolean;
@@ -61,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkSession = useCallback(async () => {
     try {
       const session = await SupabaseService.getCurrentSession();
+
       if (session) {
         setCurrentUserId(session.userId);
         setUserEmail(session.email);
@@ -81,6 +74,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Listen for session changes (e.g., session restored from SecureStore after cold start)
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[Auth] onAuthStateChange event:", event, "session:", !!session);
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        if (session?.user) {
+          setCurrentUserId(session.user.id);
+          setUserEmail(session.user.email ?? null);
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          analytics.identify(session.user.id, {
+            provider: (session.user.app_metadata?.provider as string) ?? "",
+          });
+        }
+      } else if (event === "SIGNED_OUT") {
+        setIsAuthenticated(false);
+        setCurrentUserId(null);
+        setUserEmail(null);
+      }
+    });
+    console.log("[Auth] onAuthStateChange listener registered");
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Debug: log when isAuthenticated changes
+  useEffect(() => {
+    console.log("[Auth] isAuthenticated changed to:", isAuthenticated, "isLoading:", isLoading);
+  }, [isAuthenticated, isLoading]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!(globalThis as any).crypto?.subtle) {
@@ -129,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setIsSigningIn(true);
     try {
-      const redirectUri = AuthSession.makeRedirectUri();
+      const redirectUri = AuthSession.makeRedirectUri({ path: "auth-callback" });
       console.log("[Auth] Google OAuth redirect URI:", redirectUri);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
