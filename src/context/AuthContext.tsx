@@ -1,13 +1,27 @@
-import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
-import { digestStringAsync, CryptoDigestAlgorithm, CryptoEncoding } from 'expo-crypto';
-import * as SupabaseService from '../services/supabaseService';
-import { supabase } from '../config/supabase';
-import { analytics, AnalyticsEvent } from '../services/analyticsService';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
+/**
+ * AuthContext and AuthProvider for React Native
+ */
 
-import { useToast } from './ToastContext';
+import React, {
+  createContext,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
+import * as AuthSession from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
+import {
+  digestStringAsync,
+  CryptoDigestAlgorithm,
+  CryptoEncoding,
+} from "expo-crypto";
+import * as SupabaseService from "../services/supabaseService";
+import { supabase } from "../config/supabase";
+import { clearAllLocalData } from "../db/database";
+import { analytics, AnalyticsEvent } from "../services/analyticsService";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import { useToast } from "./ToastContext";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -51,17 +65,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUserId(session.userId);
         setUserEmail(session.email);
         setIsAuthenticated(true);
-
         analytics.identify(session.userId, { provider: session.provider });
-
-        // If account was soft-deleted, cancel the deletion on sign-in
         try {
           const profile = await SupabaseService.getUserProfile();
           if (profile?.deleted_at) {
             await SupabaseService.cancelDeleteAccount();
           }
         } catch (error) {
-          console.warn('[Auth] Profile fetch failed:', error);
+          console.warn("[Auth] Profile fetch failed:", error);
         }
       }
     } catch {
@@ -72,27 +83,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    // React Native's `crypto` is a getter that returns a fresh object each access,
-    // so `gCrypto.subtle = x` mutates a temporary instance that's immediately lost.
-    // Use Object.defineProperty to replace the getter with a permanent plain value
-    // that includes both the existing getRandomValues AND our subtle polyfill.
     if (!(globalThis as any).crypto?.subtle) {
-      const existingGetRandomValues = (globalThis as any).crypto?.getRandomValues;
+      const existingGetRandomValues = (globalThis as any).crypto
+        ?.getRandomValues;
       const subtlePolyfill = {
-        digest: async (algorithm: string, data: BufferSource): Promise<ArrayBuffer> => {
-          const bytes = data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer);
-          const str = new TextDecoder('utf-8').decode(bytes);
+        digest: async (
+          algorithm: string,
+          data: BufferSource,
+        ): Promise<ArrayBuffer> => {
+          const bytes =
+            data instanceof Uint8Array
+              ? data
+              : new Uint8Array(data as ArrayBuffer);
+          const str = new TextDecoder("utf-8").decode(bytes);
           const hex = await digestStringAsync(
             algorithm as CryptoDigestAlgorithm,
             str,
             { encoding: CryptoEncoding.HEX },
           );
-          const result = new Uint8Array(hex.match(/../g)!.map(b => parseInt(b, 16)));
+          const result = new Uint8Array(
+            hex.match(/../g)!.map((b) => parseInt(b, 16)),
+          );
           return result.buffer;
         },
       };
       try {
-        Object.defineProperty(globalThis, 'crypto', {
+        Object.defineProperty(globalThis, "crypto", {
           value: {
             getRandomValues: (array: ArrayBufferView) => {
               existingGetRandomValues?.(array);
@@ -104,7 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           writable: true,
         });
       } catch {
-        // Fallback if property is non-configurable
         (globalThis as any).crypto = {
           getRandomValues: existingGetRandomValues,
           subtle: subtlePolyfill,
@@ -115,9 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsSigningIn(true);
     try {
       const redirectUri = AuthSession.makeRedirectUri();
-      console.log('[Auth] Google OAuth redirect URI:', redirectUri);
+      console.log("[Auth] Google OAuth redirect URI:", redirectUri);
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo: redirectUri,
           skipBrowserRedirect: true,
@@ -125,26 +140,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error || !data.url) {
-        console.error('[Auth] signInWithOAuth failed:', error, 'url:', data?.url);
-        showToast({ text: 'Failed to start Google sign in', type: 'error' });
+        console.error(
+          "[Auth] signInWithOAuth failed:",
+          error,
+          "url:",
+          data?.url,
+        );
+        showToast({ text: "Failed to start Google sign in", type: "error" });
         return;
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
-      console.log('[Auth] WebBrowser result:', result.type, result.type === 'success' ? result.url : '');
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectUri,
+      );
+      console.log(
+        "[Auth] WebBrowser result:",
+        result.type,
+        result.type === "success" ? result.url : "",
+      );
 
-      if (result.type !== 'success') {
-        // User cancelled — just stop, stay on login screen
-        return;
-      }
+      if (result.type !== "success") return;
 
-      // Extract just the auth code from the URL — exchangeCodeForSession
-      // passes its argument verbatim as auth_code in the POST body, so we
-      // must not pass the full URL.
       const codeMatch = result.url.match(/[?&]code=([^&#]+)/);
       const authCode = codeMatch?.[1];
       if (!authCode) {
-        showToast({ text: 'Sign in failed, please try again', type: 'error' });
+        showToast({ text: "Sign in failed, please try again", type: "error" });
         return;
       }
 
@@ -152,8 +173,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.exchangeCodeForSession(authCode);
 
       if (sessionError || !sessionData.user) {
-        console.error('[Auth] exchangeCodeForSession failed:', sessionError);
-        showToast({ text: 'Sign in failed, please try again', type: 'error' });
+        console.error("[Auth] exchangeCodeForSession failed:", sessionError);
+        showToast({ text: "Sign in failed, please try again", type: "error" });
         return;
       }
 
@@ -161,11 +182,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserEmail(sessionData.user.email ?? null);
       setIsAuthenticated(true);
 
-      analytics.identify(sessionData.user.id, { provider: 'google' });
-      analytics.track(AnalyticsEvent.SignInCompleted, { provider: 'google' });
+      analytics.identify(sessionData.user.id, { provider: "google" });
+      analytics.track(AnalyticsEvent.SignInCompleted, { provider: "google" });
     } catch (error: any) {
-      console.error('[Auth] signInWithGoogle threw:', error);
-      showToast({ text: 'Sign in failed, please try again', type: 'error', action: { label: 'Retry', onPress: () => signInWithGoogle() } });
+      console.error("[Auth] signInWithGoogle threw:", error);
+      showToast({
+        text: "Sign in failed, please try again",
+        type: "error",
+        action: { label: "Retry", onPress: () => signInWithGoogle() },
+      });
     } finally {
       setIsSigningIn(false);
     }
@@ -176,13 +201,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await SupabaseService.signOut();
       } catch {
-        // Network error: fall back to local-only sign out
-        await supabase.auth.signOut({ scope: 'local' });
+        await supabase.auth.signOut({ scope: "local" });
       }
     } else {
-      // Offline: clear local session only, no network request
-      await supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut({ scope: "local" });
     }
+    try {
+      await clearAllLocalData();
+    } catch (error) {
+      console.warn("[Auth] Failed to clear local data on sign-out:", error);
+    }
+
     analytics.track(AnalyticsEvent.SignedOut);
     analytics.reset();
     setIsAuthenticated(false);
@@ -192,21 +221,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     if (!isOnline) {
-      showToast({ text: 'You need to be online to delete your account', type: 'error' });
+      showToast({
+        text: "You need to be online to delete your account",
+        type: "error",
+      });
       return;
     }
     setIsLoading(true);
     try {
       await SupabaseService.softDeleteAccount();
-
+      try {
+        await clearAllLocalData();
+      } catch (error) {
+        console.warn(
+          "[Auth] Failed to clear local data on account delete:",
+          error,
+        );
+      }
       analytics.track(AnalyticsEvent.AccountDeleteRequested);
       analytics.reset();
-
       setIsAuthenticated(false);
       setCurrentUserId(null);
       setUserEmail(null);
     } catch {
-      showToast({ text: 'Failed to delete account, please try again', type: 'error' });
+      showToast({
+        text: "Failed to delete account, please try again",
+        type: "error",
+      });
     } finally {
       setIsLoading(false);
     }

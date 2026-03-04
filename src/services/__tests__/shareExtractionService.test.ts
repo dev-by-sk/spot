@@ -2,57 +2,59 @@
  * Tests for shareExtractionService.ts
  *
  * Targets medium-severity bug from docs/test-scenarios.md:
- * - 5.1.2 [BUG] LLM edge function invocation uses name 'extract-tiktok'
- *   instead of 'extract-place' — function call always 404s
+ * - 5.1.2 [FIXED] LLM edge function now invokes 'extract-place' (the correct
+ *   deployed function name) instead of the old 'extract-tiktok'
  *   (shareExtractionService.ts:144)
  */
 
 const mockInvoke = jest.fn();
 
-jest.mock('../../config/supabase', () => ({
+jest.mock("../../config/supabase", () => ({
   supabase: {
     functions: {
       invoke: (...args: any[]) => mockInvoke(...args),
     },
     auth: {
       getSession: jest.fn().mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
+        data: { session: { access_token: "test-token" } },
       }),
     },
   },
-  SUPABASE_URL: 'https://test.supabase.co',
-  SUPABASE_ANON_KEY: 'test-anon-key',
+  SUPABASE_URL: "https://test.supabase.co",
+  SUPABASE_ANON_KEY: "test-anon-key",
 }));
 
-jest.mock('../googlePlacesService', () => ({
-  searchPlace: jest.fn().mockResolvedValue([
-    { id: 'ChIJ123', name: 'Test Cafe', address: '123 Main St', category: 'Cafe' },
-  ]),
+jest.mock("../googlePlacesService", () => ({
+  searchPlace: jest
+    .fn()
+    .mockResolvedValue([
+      {
+        id: "ChIJ123",
+        name: "Test Cafe",
+        address: "123 Main St",
+        category: "Cafe",
+      },
+    ]),
 }));
 
-jest.mock('../../utils/retry', () => ({
+jest.mock("../../utils/retry", () => ({
   retryWithBackoff: (fn: () => Promise<any>) => fn(),
 }));
 
-import { extractPlaceFromURL } from '../shareExtractionService';
+import { extractPlaceFromURL } from "../shareExtractionService";
 
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe('shareExtractionService', () => {
+describe("shareExtractionService", () => {
   /**
-   * Scenario 5.1.2 — [BUG] Wrong edge function name
+   * Scenario 5.1.2 — [FIXED] Correct edge function name 'extract-place'
    *
-   * extractPlaceNameWithLLM (line 144) calls:
-   *   supabase.functions.invoke('extract-tiktok', { body: ... })
-   *
-   * The deployed edge function is named 'extract-place', not 'extract-tiktok'.
-   * This means every LLM extraction call 404s, and the entire share-to-save
-   * pipeline is broken for ALL URL types (not just TikTok).
+   * Previously called 'extract-tiktok' which always 404'd. Now calls
+   * 'extract-place' — the actual deployed Supabase edge function.
    */
-  it('5.1.2: LLM extraction invokes wrong edge function name "extract-tiktok"', async () => {
-    // Mock fetch for the HTML metadata scraping step
+  it('5.1.2: LLM extraction invokes correct edge function name "extract-place"', async () => {
     const originalFetch = global.fetch;
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -61,29 +63,24 @@ describe('shareExtractionService', () => {
         '<html><head><meta property="og:title" content="Amazing Cafe Review"><meta property="og:description" content="Best coffee in NYC"></head></html>',
     }) as any;
 
-    // Mock the edge function to return a valid extraction
     mockInvoke.mockResolvedValue({
-      data: { placeName: 'Amazing Cafe', location: 'NYC' },
+      data: { placeName: "Amazing Cafe", location: "NYC" },
       error: null,
     });
 
-    await extractPlaceFromURL('https://www.example.com/blog/cafe-review');
+    await extractPlaceFromURL("https://www.example.com/blog/cafe-review");
 
-    // BUG: The function is invoked with 'extract-tiktok' instead of 'extract-place'
+    // FIXED: The function is invoked with the correct name 'extract-place'
     expect(mockInvoke).toHaveBeenCalledTimes(1);
-    expect(mockInvoke.mock.calls[0][0]).toBe('extract-tiktok');
-
-    // The correct name should be 'extract-place' (the deployed edge function)
-    expect(mockInvoke.mock.calls[0][0]).not.toBe('extract-place');
+    expect(mockInvoke.mock.calls[0][0]).toBe("extract-place");
 
     global.fetch = originalFetch;
   });
 
   /**
-   * Scenario 5.1.2 — Prove the failure: in production, 'extract-tiktok' 404s
-   * and extractPlaceFromURL returns null (broken pipeline)
+   * Scenario 5.1.2 — Successful end-to-end extraction with correct function name
    */
-  it('5.1.2: wrong function name causes 404, making extractPlaceFromURL return null', async () => {
+  it("5.1.2: extractPlaceFromURL succeeds when edge function responds correctly", async () => {
     const originalFetch = global.fetch;
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -92,18 +89,22 @@ describe('shareExtractionService', () => {
         '<html><head><meta property="og:title" content="Great Restaurant"></head></html>',
     }) as any;
 
-    // Simulate the 404 that the Supabase edge function proxy returns
-    // when calling a non-existent function
     mockInvoke.mockResolvedValue({
-      data: null,
-      error: { message: 'Edge Function not found' },
+      data: { placeName: "Great Restaurant", location: null },
+      error: null,
     });
 
-    const result = await extractPlaceFromURL('https://www.example.com/restaurant');
+    const result = await extractPlaceFromURL(
+      "https://www.example.com/restaurant",
+    );
 
-    // The extraction fails silently and returns null — the entire
-    // share-to-save pipeline is broken
-    expect(result).toBeNull();
+    // Pipeline completes successfully — returns Google Places search result
+    expect(result).toEqual({
+      id: "ChIJ123",
+      name: "Test Cafe",
+      address: "123 Main St",
+      category: "Cafe",
+    });
 
     global.fetch = originalFetch;
   });

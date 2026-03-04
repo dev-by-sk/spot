@@ -1,7 +1,7 @@
-import * as GooglePlacesService from './googlePlacesService';
-import { supabase } from '../config/supabase';
-import { retryWithBackoff } from '../utils/retry';
-import type { PlaceSearchResult } from '../types';
+import * as GooglePlacesService from "./googlePlacesService";
+import { supabase } from "../config/supabase";
+import { retryWithBackoff } from "../utils/retry";
+import type { PlaceSearchResult } from "../types";
 
 const FETCH_TIMEOUT_MS = 5_000;
 const MAX_HTML_BYTES = 1_048_576; // 1 MB
@@ -10,19 +10,24 @@ const MAX_HTML_BYTES = 1_048_576; // 1 MB
  * Extract a place from a shared URL.
  * Flow: URL → fetch HTML metadata → LLM extracts place name → Google Places search → return top result
  */
-export async function extractPlaceFromURL(url: string): Promise<PlaceSearchResult | null> {
+export async function extractPlaceFromURL(
+  url: string,
+): Promise<PlaceSearchResult | null> {
   const metadata = await fetchPageMetadata(url);
   if (!metadata) return null;
 
-  console.log('[Share] Extracted metadata:', metadata);
+  console.log("[Share] Extracted metadata:", metadata);
 
-  const extracted = await extractPlaceNameWithLLM(metadata.title, metadata.description);
+  const extracted = await extractPlaceNameWithLLM(
+    metadata.title,
+    metadata.description,
+  );
   if (!extracted?.placeName) {
-    console.warn('[Share] LLM could not identify a place from metadata');
+    console.warn("[Share] LLM could not identify a place from metadata");
     return null;
   }
 
-  console.log('[Share] LLM extracted:', extracted);
+  console.log("[Share] LLM extracted:", extracted);
 
   // Build search query: "Place Name City" for better matching
   const query = extracted.location
@@ -51,7 +56,7 @@ async function fetchOEmbed(oEmbedUrl: string): Promise<PageMetadata | null> {
     if (!title && !description) return null;
     return { title, description };
   } catch (error) {
-    console.warn('[Share] oEmbed fetch failed:', error);
+    console.warn("[Share] oEmbed fetch failed:", error);
     return null;
   } finally {
     clearTimeout(timer);
@@ -83,21 +88,22 @@ async function fetchPageMetadata(url: string): Promise<PageMetadata | null> {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+        "User-Agent":
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
       },
     });
 
-    const contentLength = response.headers.get('content-length');
+    const contentLength = response.headers.get("content-length");
     if (contentLength && parseInt(contentLength, 10) > MAX_HTML_BYTES) {
       return null;
     }
 
     const raw = await response.text();
-    const html = raw.length > MAX_HTML_BYTES ? raw.slice(0, MAX_HTML_BYTES) : raw;
+    const html =
+      raw.length > MAX_HTML_BYTES ? raw.slice(0, MAX_HTML_BYTES) : raw;
 
-    const ogTitle = extractMetaContent(html, 'og:title');
-    const ogDesc = extractMetaContent(html, 'og:description');
+    const ogTitle = extractMetaContent(html, "og:title");
+    const ogDesc = extractMetaContent(html, "og:description");
     const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
 
     const title = ogTitle ?? (titleTag ? titleTag[1].trim() : null);
@@ -107,7 +113,7 @@ async function fetchPageMetadata(url: string): Promise<PageMetadata | null> {
 
     return { title, description };
   } catch (error) {
-    console.warn('[Share] Failed to fetch URL:', error);
+    console.warn("[Share] Failed to fetch URL:", error);
     return null;
   } finally {
     clearTimeout(timer);
@@ -123,11 +129,13 @@ const MAX_LLM_INPUT_CHARS = 500;
 
 function sanitizeForLLM(text: string | null): string | null {
   if (!text) return null;
-  return text
-    .replace(/<[^>]*>/g, ' ')      // strip HTML tags
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // strip control chars
-    .trim()
-    .slice(0, MAX_LLM_INPUT_CHARS) || null;
+  return (
+    text
+      .replace(/<[^>]*>/g, " ") // strip HTML tags
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // strip control chars
+      .trim()
+      .slice(0, MAX_LLM_INPUT_CHARS) || null
+  );
 }
 
 async function extractPlaceNameWithLLM(
@@ -141,9 +149,12 @@ async function extractPlaceNameWithLLM(
     if (!safeTitle && !safeDescription) return null;
 
     const data = await retryWithBackoff(async () => {
-      const { data: result, error: fnError } = await supabase.functions.invoke('extract-tiktok', {
-        body: { title: safeTitle, description: safeDescription },
-      });
+      const { data: result, error: fnError } = await supabase.functions.invoke(
+        "extract-place",
+        {
+          body: { title: safeTitle, description: safeDescription },
+        },
+      );
 
       if (fnError) {
         throw new Error(fnError.message);
@@ -154,7 +165,7 @@ async function extractPlaceNameWithLLM(
 
     return data;
   } catch (error) {
-    console.warn('[Share] LLM extraction failed:', error);
+    console.warn("[Share] LLM extraction failed:", error);
     return null;
   }
 }
@@ -163,7 +174,7 @@ function extractMetaContent(html: string, property: string): string | null {
   // property="og:title" content="..."
   const pattern1 = new RegExp(
     `<meta[^>]+property\\s*=\\s*["']${property}["'][^>]+content\\s*=\\s*["']([^"']+)["']`,
-    'i',
+    "i",
   );
   const match1 = html.match(pattern1);
   if (match1) return match1[1];
@@ -171,7 +182,7 @@ function extractMetaContent(html: string, property: string): string | null {
   // content="..." property="og:title"
   const pattern2 = new RegExp(
     `<meta[^>]+content\\s*=\\s*["']([^"']+)["'][^>]+property\\s*=\\s*["']${property}["']`,
-    'i',
+    "i",
   );
   const match2 = html.match(pattern2);
   return match2 ? match2[1] : null;

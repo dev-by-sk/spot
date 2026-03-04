@@ -1,3 +1,7 @@
+/**
+ * PlacesContext and PlacesProvider for React Native
+ */
+
 import React, {
   createContext,
   useState,
@@ -36,18 +40,13 @@ import type {
 import { SpotError } from "../types";
 
 export interface PlacesContextValue {
-  // Network
   isOnline: boolean;
-
-  // Search
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   searchResults: PlaceSearchResult[];
   isSearching: boolean;
   search: (query: string) => Promise<void>;
   getPlaceDetails: (placeId: string) => Promise<PlaceCacheDTO | null>;
-
-  // Saved places
   savedPlaces: SavedPlaceLocal[];
   isLoadingPlaces: boolean;
   refreshPlaces: (userId: string) => Promise<void>;
@@ -64,12 +63,8 @@ export interface PlacesContextValue {
     placeName: string,
     dateVisited?: string | null,
   ) => Promise<void>;
-
-  // Filter
   selectedFilter: PlaceCategory | null;
   setSelectedFilter: (f: PlaceCategory | null) => void;
-
-  // Sync
   isSyncing: boolean;
   syncPlaces: (userId: string) => Promise<void>;
 }
@@ -94,7 +89,6 @@ export const PlacesContext = createContext<PlacesContextValue>({
   syncPlaces: async () => {},
 });
 
-/** Look up the current userId from the Supabase session (fallback when ref is not yet set). */
 async function getCurrentUserId(): Promise<string | null> {
   try {
     const session = await SupabaseService.getCurrentSession();
@@ -121,6 +115,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const currentUserIdRef = useRef<string | null>(null);
   const isSyncInProgressRef = useRef(false);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const savingPlaceIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     (async () => {
@@ -145,11 +140,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
 
   const search = useCallback(
     async (query: string) => {
-      if (!query.trim()) {
-        setSearchResults([]);
-        return;
-      }
-      if (!isOnline) {
+      if (!query.trim() || !isOnline) {
         setSearchResults([]);
         return;
       }
@@ -182,9 +173,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
 
   const getPlaceDetails = useCallback(
     async (placeId: string): Promise<PlaceCacheDTO | null> => {
-      if (!isOnline) {
-        return null;
-      }
+      if (!isOnline) return null;
       try {
         const details = await GooglePlacesService.getPlaceDetails(placeId);
         analytics.track(AnalyticsEvent.SearchResultTapped, {
@@ -210,45 +199,24 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       userId: string,
       dateVisited?: string | null,
     ) => {
-      // Check for duplicate
-      const duplicate = await isDuplicatePlace(userId, dto.google_place_id);
-      if (duplicate) {
-        analytics.track(AnalyticsEvent.DuplicateBlocked, {
-          place_name: dto.name,
-        });
+      if (savingPlaceIdsRef.current.has(dto.google_place_id)) {
         throw SpotError.duplicatePlace();
       }
-
-      const placeId = Crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Insert cache locally
-      await upsertLocalPlaceCache(dto);
-
-      // Insert saved place locally
-      await insertLocalSavedPlace({
-        id: placeId,
-        user_id: userId,
-        google_place_id: dto.google_place_id,
-        note_text: note,
-        date_visited: dateVisited ?? null,
-        saved_at: now,
-      });
-
-      analytics.track(AnalyticsEvent.PlaceSaved, {
-        place_name: dto.name,
-        category: dto.category,
-        cuisine: dto.cuisine,
-        has_note: note.length > 0,
-      });
-
-      // Refresh local list
-      await refreshPlaces(userId);
-
-      // Async push to Supabase
+      savingPlaceIdsRef.current.add(dto.google_place_id);
       try {
-        await SupabaseService.upsertPlaceCache(dto);
-        await SupabaseService.uploadSavedPlace({
+        const duplicate = await isDuplicatePlace(userId, dto.google_place_id);
+        if (duplicate) {
+          analytics.track(AnalyticsEvent.DuplicateBlocked, {
+            place_name: dto.name,
+          });
+          throw SpotError.duplicatePlace();
+        }
+
+        const placeId = Crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        await upsertLocalPlaceCache(dto);
+        await insertLocalSavedPlace({
           id: placeId,
           user_id: userId,
           google_place_id: dto.google_place_id,
@@ -256,8 +224,31 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
           date_visited: dateVisited ?? null,
           saved_at: now,
         });
-      } catch (error) {
-        console.warn("[Sync] Background save push failed:", error);
+
+        analytics.track(AnalyticsEvent.PlaceSaved, {
+          place_name: dto.name,
+          category: dto.category,
+          cuisine: dto.cuisine,
+          has_note: note.length > 0,
+        });
+
+        await refreshPlaces(userId);
+
+        try {
+          await SupabaseService.upsertPlaceCache(dto);
+          await SupabaseService.uploadSavedPlace({
+            id: placeId,
+            user_id: userId,
+            google_place_id: dto.google_place_id,
+            note_text: note,
+            date_visited: dateVisited ?? null,
+            saved_at: now,
+          });
+        } catch (error) {
+          console.warn("[Sync] Background save push failed:", error);
+        }
+      } finally {
+        savingPlaceIdsRef.current.delete(dto.google_place_id);
       }
     },
     [refreshPlaces],
@@ -267,16 +258,9 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     async (id: string, placeName: string) => {
       await deleteLocalSavedPlace(id);
       await markPendingDeletion(id);
-
       analytics.track(AnalyticsEvent.PlaceDeleted, { place_name: placeName });
-
-      // Refresh local list — fall back to session userId if ref not yet set
       const userId = currentUserIdRef.current ?? (await getCurrentUserId());
-      if (userId) {
-        await refreshPlaces(userId);
-      }
-
-      // Async delete from Supabase — clear pending deletion only on success
+      if (userId) await refreshPlaces(userId);
       try {
         await SupabaseService.deleteSavedPlace(id);
         await clearPendingDeletion(id);
@@ -298,16 +282,9 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       dateVisited?: string | null,
     ) => {
       await updateLocalSavedPlaceNote(id, note, dateVisited);
-
       analytics.track(AnalyticsEvent.NoteEdited, { place_name: placeName });
-
-      // Refresh local list — fall back to session userId if ref not yet set
       const userId = currentUserIdRef.current ?? (await getCurrentUserId());
-      if (userId) {
-        await refreshPlaces(userId);
-      }
-
-      // Async update on Supabase
+      if (userId) await refreshPlaces(userId);
       try {
         await SupabaseService.updateSavedPlaceNote(id, note, dateVisited);
       } catch (error) {
@@ -347,7 +324,6 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
     [isOnline, refreshPlaces, showToast],
   );
 
-  // Auto-sync when connectivity is restored (silent — no isSyncing UI indicator)
   const prevIsOnlineRef = useRef(isOnline);
   useEffect(() => {
     if (isOnline && !prevIsOnlineRef.current && currentUserIdRef.current) {
@@ -357,9 +333,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
       pushToRemote(userId, true)
         .then(() => pullFromRemote(userId, true))
         .then(() => refreshPlaces(userId))
-        .catch((err) => {
-          console.warn("[Sync] Reconnect sync failed:", err);
-        })
+        .catch((err) => console.warn("[Sync] Reconnect sync failed:", err))
         .finally(() => {
           isSyncInProgressRef.current = false;
         });
