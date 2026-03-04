@@ -3,39 +3,13 @@
 > Last updated: 2026-03-04
 > Remaining issues from full codebase audit. Ordered by priority within each tier.
 
----
-
-## Blockers (Security & Data Integrity)
-
-These must be fixed before any public release. Each one is either a security vulnerability or a data-loss risk.
-
----
-
-### 1. Silent Sync Failures — Data Loss Risk
-
-**Fix** · **Effort: Large (4–6 hr)**
-
-**What:** When Supabase push fails after a local save, the error is swallowed with `console.warn()`. No retry queue, no offline buffer, no user-visible indicator.
-
-**Why it matters:** Users believe their data is backed up, but it may only exist in local SQLite. If they switch devices, reinstall, or clear app data, those places are gone forever.
-
-**What happens if we skip it:** Silent data loss. Users will discover it at the worst time (new phone, app crash) and lose trust immediately.
-
-**Files:**
-
-- `src/context/PlacesContext.tsx` (try-catch blocks that only `console.warn`)
-
-**Fix:** Implement a persistent retry queue (write failed operations to SQLite, retry on next app foreground / connectivity change), and show a "sync pending" indicator in the UI.
-
----
-
 ## Important (Reliability & Core Features)
 
 These significantly affect user experience and app reliability. Fix before scaling to more users.
 
 ---
 
-### 2. Sentry and PostHog Not Wired Up
+### 1. Sentry and PostHog Not Wired Up
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -54,7 +28,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 3. No LLM Fallback When Edge Function Fails
+### 2. No LLM Fallback When Edge Function Fails
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -78,7 +52,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 4. Sort Options for Saved Places
+### 3. Sort Options for Saved Places
 
 **Feature** · **Effort: Medium (2–3 hr)**
 
@@ -92,7 +66,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 5. Missing Safe Area Handling on Some Screens
+### 4. Missing Safe Area Handling on Some Screens
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -111,7 +85,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 6. No CI/CD Pipeline
+### 5. No CI/CD Pipeline
 
 **Feature** · **Effort: Large (4–6 hr)**
 
@@ -125,7 +99,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 7. No Haptic Feedback
+### 6. No Haptic Feedback
 
 **Feature** · **Effort: Small (<1 hr)**
 
@@ -139,7 +113,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 8. Outdated Dependencies with Known Vulnerabilities
+### 7. Outdated Dependencies with Known Vulnerabilities
 
 **Fix** · **Effort: Medium (2–4 hr)**
 
@@ -162,7 +136,6 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 | Tier               | Issues | Effort     |
 | ------------------ | ------ | ---------- |
-| **Blockers**       | 1      | ~5 hr      |
 | **Important**      | 2      | ~5 hr      |
 | **Polish & Infra** | 5      | ~15 hr     |
-| **Total**          | **8**  | **~25 hr** |
+| **Total**          | **7**  | **~25 hr** |
