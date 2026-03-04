@@ -29,12 +29,19 @@ async function authenticatedRequest(url: string, skipGeneralLimit = false): Prom
     throw SpotError.rateLimited();
   }
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) {
+  // Pre-flight auth check — fail fast if not authenticated at all
+  const { data: initialSession } = await supabase.auth.getSession();
+  if (!initialSession.session) {
     throw SpotError.networkError('Not authenticated');
   }
 
   return retryWithBackoff(async () => {
+    // Re-fetch session on every attempt so retries use a fresh token
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      throw SpotError.networkError('Not authenticated');
+    }
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -49,6 +56,9 @@ async function authenticatedRequest(url: string, skipGeneralLimit = false): Prom
       }
       const errorBody = await response.text();
       console.log('[GooglePlaces] Request failed:', response.status, errorBody);
+      if (response.status === 401) {
+        throw SpotError.networkError('Not authenticated');
+      }
       throw SpotError.networkError('Request failed');
     }
 

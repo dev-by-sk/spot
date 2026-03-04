@@ -232,6 +232,15 @@ export async function getLocalPlaceCacheForSync(
   return row ?? null;
 }
 
+// ── Clear all local data (on sign-out / account deletion) ──
+
+export async function clearAllLocalData(): Promise<void> {
+  const db = await getDatabase();
+  await db.execAsync("DELETE FROM saved_places");
+  await db.execAsync("DELETE FROM place_cache");
+  await db.execAsync("DELETE FROM pending_deletions");
+}
+
 // ── Update local saved place (for server-wins merge) ──
 
 export async function upsertLocalSavedPlace(
@@ -299,7 +308,12 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   if (initError) {
     return React.createElement(
       View,
-      { style: [dbErrorStyles.container, { backgroundColor: colors.spotBackground }] },
+      {
+        style: [
+          dbErrorStyles.container,
+          { backgroundColor: colors.spotBackground },
+        ],
+      },
       React.createElement(Ionicons, {
         name: "warning-outline",
         size: 48,
@@ -318,13 +332,21 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       ),
       React.createElement(
         Text,
-        { style: [dbErrorStyles.submessage, { color: colors.spotTextSecondary }] },
+        {
+          style: [
+            dbErrorStyles.submessage,
+            { color: colors.spotTextSecondary },
+          ],
+        },
         "Tap below to try again",
       ),
       React.createElement(
         TouchableOpacity,
         {
-          style: [dbErrorStyles.button, { backgroundColor: colors.spotEmerald }],
+          style: [
+            dbErrorStyles.button,
+            { backgroundColor: colors.spotEmerald },
+          ],
           onPress: initDatabase,
           disabled: retrying,
         },

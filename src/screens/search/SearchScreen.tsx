@@ -101,11 +101,16 @@ export function SearchScreen() {
     async (result: PlaceSearchResult) => {
       if (loadingItemId) return;
       setLoadingItemId(result.id);
-      const details = await getPlaceDetails(result.id);
-      setLoadingItemId(null);
-      if (details) {
-        setPlaceToSave(details);
-        setShowConfirmation(true);
+      try {
+        const details = await getPlaceDetails(result.id);
+        if (details) {
+          setPlaceToSave(details);
+          setShowConfirmation(true);
+        }
+      } catch (error) {
+        console.error("[Search] Failed to load place details:", error);
+      } finally {
+        setLoadingItemId(null);
       }
     },
     [loadingItemId, getPlaceDetails],
