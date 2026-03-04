@@ -94,6 +94,16 @@ export const PlacesContext = createContext<PlacesContextValue>({
   syncPlaces: async () => {},
 });
 
+/** Look up the current userId from the Supabase session (fallback when ref is not yet set). */
+async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const session = await SupabaseService.getCurrentSession();
+    return session?.userId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function PlacesProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
@@ -260,9 +270,10 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
 
       analytics.track(AnalyticsEvent.PlaceDeleted, { place_name: placeName });
 
-      // Refresh local list
-      if (currentUserIdRef.current) {
-        await refreshPlaces(currentUserIdRef.current);
+      // Refresh local list — fall back to session userId if ref not yet set
+      const userId = currentUserIdRef.current ?? (await getCurrentUserId());
+      if (userId) {
+        await refreshPlaces(userId);
       }
 
       // Async delete from Supabase — clear pending deletion only on success
@@ -290,9 +301,10 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
 
       analytics.track(AnalyticsEvent.NoteEdited, { place_name: placeName });
 
-      // Refresh local list
-      if (currentUserIdRef.current) {
-        await refreshPlaces(currentUserIdRef.current);
+      // Refresh local list — fall back to session userId if ref not yet set
+      const userId = currentUserIdRef.current ?? (await getCurrentUserId());
+      if (userId) {
+        await refreshPlaces(userId);
       }
 
       // Async update on Supabase
