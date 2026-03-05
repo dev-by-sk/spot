@@ -13,6 +13,9 @@
 - **Auth:** Google Sign-In via Expo Auth Session (PKCE flow with S256), tokens stored in expo-secure-store
 - **APIs:** Google Places API (proxied through Supabase edge functions), OpenAI GPT-4o-mini (place extraction)
 - **Rate Limiting:** Client-side sliding-window rate limiter (`src/utils/rateLimiter.ts`)
+- **Retry:** Exponential-backoff retry utility (`src/utils/retry.ts`) for external API calls
+- **Maps:** react-native-maps + react-native-map-clustering (Apple Maps, iOS)
+- **Testing:** Jest + jest-expo (`jest.config.js`, `jest.setup.ts`, `__tests__/` directory)
 - **Analytics:** PostHog (installed, not fully wired)
 - **Error Tracking:** Sentry (installed, not fully wired)
 
@@ -25,13 +28,19 @@ npx expo start --ios # Start with iOS simulator
 npx expo start --android # Start with Android emulator
 ```
 
-No test framework is set up. No CI/CD pipeline exists.
+No CI/CD pipeline exists.
+
+```bash
+npx jest                 # Run all tests
+npx jest --watch         # Run tests in watch mode
+npx jest <path>          # Run specific test file
+```
 
 ## Project Structure
 
 ```
 src/
-├── components/      # Reusable UI (PlaceCard, FilterBar, FilterSheet, SpotButton, ErrorBoundary, OfflineBanner)
+├── components/      # Reusable UI (PlaceCard, FilterBar, FilterSheet, SpotButton, ErrorBoundary, OfflineBanner, SpotMapView, SpotMarker, PinPreviewCard)
 ├── screens/         # Full screens organized by domain
 │   ├── auth/        #   LoginScreen
 │   ├── list/        #   SavedPlacesListScreen, SpotDetailScreen, EditNoteModal
@@ -44,9 +53,9 @@ src/
 ├── services/        # Business logic — API calls, sync, analytics
 ├── hooks/           # Custom hooks (useDebounce, useNetworkStatus, useDatabaseReady)
 ├── db/              # SQLite schema, migrations, and query hooks (useSavedPlaces)
-├── theme/           # Colors, typography, spacing, shared styles
+├── theme/           # Colors, typography, spacing, shared styles, categoryColors
 ├── types/           # TypeScript interfaces, enums, error classes
-├── utils/           # Utility functions (relativeDate, rateLimiter)
+├── utils/           # Utility functions (relativeDate, rateLimiter, retry, openingHours)
 └── config/          # Supabase client init, app constants (rate limits, legal URLs)
 ```
 
@@ -106,7 +115,7 @@ Splash → Onboarding → Login → MainTabs (with OfflineBanner overlay)
 
 ### SQLite Tables (local)
 
-- **`place_cache`** — Cached Google Places data (google_place_id PK, name, address, lat/lng, rating, price_level, category, cuisine, last_refreshed)
+- **`place_cache`** — Cached Google Places data (google_place_id PK, name, address, lat/lng, rating, price_level, category, cuisine, phone_number, website, opening_hours, last_refreshed)
 - **`saved_places`** — User's saved places (id PK, user_id, google_place_id FK, note_text, date_visited, saved_at)
 - **`pending_deletions`** — Tracks deletions made offline for sync (id PK, deleted_at)
 
@@ -177,14 +186,21 @@ Edge function env (set in Supabase dashboard):
 - **Rate limiting** (PR #9) — Client-side sliding-window limiter, google-places-proxy edge function in repo
 - **Secure token storage** (PR #10) — expo-secure-store replaces AsyncStorage for auth tokens
 - **Edit notes & Open in Maps** (PR #14) — Inline note editing on SpotDetailScreen, Open in Maps button (Apple Maps/Google Maps)
+- **Phone, website & opening hours** (PR #15) — Google Places proxy returns phone number, website, and opening hours; displayed on SpotDetailScreen
+- **Dark mode color fixes** (PR #16) — Replaced hardcoded hex colors with theme-aware colors across components
+- **Test infrastructure** (PR #17) — Jest + jest-expo setup, initial test suite (smoke, rateLimiter, relativeDate, syncService)
+- **Retry logic for APIs** (PR #18) — Exponential-backoff retry utility (`src/utils/retry.ts`) applied to Google Places and share extraction services
+- **"Currently open" filter** (PR #19) — Opening hours parsing utility (`src/utils/openingHours.ts`), FilterSheet option to show only currently-open spots
+- **Memoization for saved places** (PR #20) — Performance optimization with React.memo on PlaceCard and useMemo/useCallback in PlacesContext and SavedPlacesListScreen
+- **Date format fix** (PR #22) — Consistent date-only string storage across SaveConfirmationModal and EditNoteModal, timezone-safe date handling
+- **Map view** (PR #23) — List/map toggle on SavedPlacesListScreen, SpotMapView with clustered pins (react-native-map-clustering), SpotMarker with per-category colors, PinPreviewCard bottom sheet, near-me button, unified `categoryColors.ts`
+- **Additional tests** (PR #24) — Tests for AuthContext, PlacesContext, SearchScreen, googlePlacesService, shareExtractionService, supabaseService
 
 ## Known Issues
 
 See `ISSUES.md` for tracked issues. Many original blockers have been fixed (marked in ISSUES.md). Remaining issues include:
 
 - Silent sync failures (potential data loss) — no persistent retry queue yet
-- Zero test coverage, no CI/CD pipeline
+- No CI/CD pipeline
 - Sentry and PostHog not fully wired up
 - No pagination for large place lists
-- Some hardcoded colors that break in dark mode
-- No retry logic for external API calls

@@ -7,12 +7,12 @@
  * - 4.1.6 [FIXED] HTTP 401 generates retryable networkError
  *   → 401 now throws 'Not authenticated' which is non-retryable
  */
-import { SpotError } from '../../types';
+import { SpotError } from '../../src/types';
 
 // ── Mocks ──
 
 const mockGetSession = jest.fn();
-jest.mock('../../config/supabase', () => ({
+jest.mock('../../src/config/supabase', () => ({
   supabase: {
     auth: { getSession: (...args: any[]) => mockGetSession(...args) },
   },
@@ -20,15 +20,15 @@ jest.mock('../../config/supabase', () => ({
   SUPABASE_ANON_KEY: 'test-anon-key',
 }));
 
-jest.mock('../../utils/rateLimiter', () => ({
+jest.mock('../../src/utils/rateLimiter', () => ({
   RateLimiter: class {
     tryAcquire() { return true; }
   },
 }));
 
 // Use real retryWithBackoff but with 0 delay so tests are fast
-jest.mock('../../utils/retry', () => {
-  const original = jest.requireActual('../../utils/retry');
+jest.mock('../../src/utils/retry', () => {
+  const original = jest.requireActual('../../src/utils/retry');
   return {
     retryWithBackoff: (fn: () => Promise<any>, maxRetries = 2) =>
       original.retryWithBackoff(fn, maxRetries, 0),
@@ -84,7 +84,7 @@ describe('googlePlacesService', () => {
       });
     }) as any;
 
-    const { getPlaceDetails } = require('../googlePlacesService');
+    const { getPlaceDetails } = require('../../src/services/googlePlacesService');
     await getPlaceDetails('ChIJ123');
 
     // getSession called 3 times: 1 pre-flight + 1 per attempt
@@ -117,7 +117,7 @@ describe('googlePlacesService', () => {
       return new Response('Unauthorized', { status: 401 });
     }) as any;
 
-    const { getPlaceDetails } = require('../googlePlacesService');
+    const { getPlaceDetails } = require('../../src/services/googlePlacesService');
 
     await expect(getPlaceDetails('ChIJ123')).rejects.toThrow('Not authenticated');
 
@@ -142,7 +142,7 @@ describe('googlePlacesService', () => {
       return new Response('Too Many Requests', { status: 429 });
     }) as any;
 
-    const { getPlaceDetails } = require('../googlePlacesService');
+    const { getPlaceDetails } = require('../../src/services/googlePlacesService');
 
     await expect(getPlaceDetails('ChIJ123')).rejects.toThrow(
       'Too many requests',
