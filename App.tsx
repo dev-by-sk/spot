@@ -11,6 +11,7 @@ import { DatabaseProvider } from './src/db/database';
 import { AuthProvider } from './src/context/AuthContext';
 import { PlacesProvider } from './src/context/PlacesContext';
 import { ShareProvider } from './src/context/ShareContext';
+import { FriendsProvider } from './src/context/FriendsContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -24,6 +25,11 @@ const linking = {
       MainTabs: {
         screens: {
           Search: 'search',
+          Friends: {
+            screens: {
+              FriendProfile: 'profile/:username',
+            },
+          },
         },
       },
     },
@@ -78,9 +84,11 @@ export default function App() {
               <DatabaseProvider>
                 <AuthProvider>
                   <PlacesProvider>
-                    <ShareProvider>
-                      <ThemedApp />
-                    </ShareProvider>
+                    <FriendsProvider>
+                      <ShareProvider>
+                        <ThemedApp />
+                      </ShareProvider>
+                    </FriendsProvider>
                   </PlacesProvider>
                 </AuthProvider>
               </DatabaseProvider>

@@ -37,7 +37,9 @@ import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import { usePlaces } from "../../hooks/usePlaces";
 import { useAuth } from "../../hooks/useAuth";
+import { useFriends } from "../../context/FriendsContext";
 import { PlaceCard } from "../../components/PlaceCard";
+import { formatSocialIndicator } from "../../utils/socialIndicator";
 import { FilterBar } from "../../components/FilterBar";
 import { FilterSheet } from "../../components/FilterSheet";
 import { EditNoteModal } from "./EditNoteModal";
@@ -70,6 +72,7 @@ export function SavedPlacesListScreen() {
     syncPlaces,
   } = usePlaces();
   const { currentUserId } = useAuth();
+  const { socialIndicators, fetchSocialIndicators } = useFriends();
   const colors = useSpotColors();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -128,6 +131,16 @@ export function SavedPlacesListScreen() {
       openSwipeableRef.current?.close();
     }
   }, [currentUserId, isFocused, refreshPlaces]);
+
+  // Fetch social indicators when saved places change
+  useEffect(() => {
+    if (savedPlaces.length > 0 && isFocused) {
+      const placeIds = savedPlaces.map((p) => p.google_place_id).filter(Boolean);
+      if (placeIds.length > 0) {
+        fetchSocialIndicators(placeIds);
+      }
+    }
+  }, [savedPlaces, isFocused, fetchSocialIndicators]);
 
   useEffect(() => {
     (async () => {
@@ -325,6 +338,7 @@ export function SavedPlacesListScreen() {
   const renderItem = useCallback(
     ({ item }: { item: SavedPlaceLocal }) => {
       const isNew = newIdsRef.current.has(item.id);
+      const indicator = formatSocialIndicator(socialIndicators[item.google_place_id] ?? []);
       return (
         <PlaceRow
           item={item}
@@ -335,6 +349,7 @@ export function SavedPlacesListScreen() {
           renderRightActions={renderRightActions}
           handleSwipeOpen={handleSwipeOpen}
           navigation={navigation}
+          socialIndicator={indicator}
         />
       );
     },
@@ -345,6 +360,7 @@ export function SavedPlacesListScreen() {
       renderRightActions,
       handleSwipeOpen,
       navigation,
+      socialIndicators,
     ],
   );
 
@@ -624,6 +640,7 @@ interface PlaceRowProps {
   ) => React.ReactNode;
   handleSwipeOpen: (ref: Swipeable) => void;
   navigation: NativeStackNavigationProp<ListStackParamList>;
+  socialIndicator?: string | null;
 }
 
 const PlaceRow = React.memo(function PlaceRow({
@@ -635,6 +652,7 @@ const PlaceRow = React.memo(function PlaceRow({
   renderRightActions,
   handleSwipeOpen,
   navigation,
+  socialIndicator,
 }: PlaceRowProps) {
   let swipeRef: Swipeable | null = null;
   let swiping = false;
@@ -675,7 +693,10 @@ const PlaceRow = React.memo(function PlaceRow({
           }}
           style={styles.cardContainer}
         >
-          <PlaceCard place={item} />
+          <PlaceCard
+            place={item}
+            socialIndicator={socialIndicator}
+          />
         </TouchableOpacity>
       </Swipeable>
     </AnimatedListItem>

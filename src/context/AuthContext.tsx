@@ -3,6 +3,7 @@ import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { digestStringAsync, CryptoDigestAlgorithm, CryptoEncoding } from 'expo-crypto';
 import * as SupabaseService from '../services/supabaseService';
+import * as FriendsService from '../services/friendsService';
 import { supabase } from '../config/supabase';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -17,10 +18,16 @@ export interface AuthContextValue {
   isSigningIn: boolean;
   currentUserId: string | null;
   userEmail: string | null;
+  username: string | null;
+  displayName: string | null;
+  hasUsername: boolean;
+  profilePrivate: boolean;
   checkSession: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+  setUsername: (username: string, firstName?: string, lastName?: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
@@ -29,10 +36,16 @@ export const AuthContext = createContext<AuthContextValue>({
   isSigningIn: false,
   currentUserId: null,
   userEmail: null,
+  username: null,
+  displayName: null,
+  hasUsername: false,
+  profilePrivate: true,
   checkSession: async () => {},
   signInWithGoogle: async () => {},
   signOut: async () => {},
   deleteAccount: async () => {},
+  setUsername: async () => {},
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -43,6 +56,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [username, setUsernameState] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [profilePrivate, setProfilePrivate] = useState(true);
 
   const checkSession = useCallback(async () => {
     try {
@@ -54,11 +70,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         analytics.identify(session.userId, { provider: session.provider });
 
-        // If account was soft-deleted, cancel the deletion on sign-in
+        // Fetch profile: populate username/displayName, handle soft-delete
         try {
           const profile = await SupabaseService.getUserProfile();
           if (profile?.deleted_at) {
             await SupabaseService.cancelDeleteAccount();
+          }
+          if (profile) {
+            setUsernameState(profile.username ?? null);
+            setDisplayName(profile.display_name ?? null);
+            setProfilePrivate(profile.profile_private ?? true);
           }
         } catch (error) {
           console.warn('[Auth] Profile fetch failed:', error);
@@ -159,8 +180,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setCurrentUserId(sessionData.user.id);
       setUserEmail(sessionData.user.email ?? null);
-      setIsAuthenticated(true);
 
+      // Fetch profile before setting authenticated to avoid username screen flash
+      try {
+        const profile = await SupabaseService.getUserProfile();
+        if (profile) {
+          setUsernameState(profile.username ?? null);
+          setDisplayName(profile.display_name ?? null);
+          setProfilePrivate(profile.profile_private ?? true);
+        }
+      } catch {
+        console.warn('[Auth] Profile fetch after sign-in failed');
+      }
+
+      setIsAuthenticated(true);
       analytics.identify(sessionData.user.id, { provider: 'google' });
       analytics.track(AnalyticsEvent.SignInCompleted, { provider: 'google' });
     } catch (error: any) {
@@ -188,6 +221,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     setCurrentUserId(null);
     setUserEmail(null);
+    setUsernameState(null);
+    setDisplayName(null);
+    setProfilePrivate(true);
   }, [isOnline]);
 
   const deleteAccount = useCallback(async () => {
@@ -212,6 +248,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isOnline, showToast]);
 
+  const refreshProfile = useCallback(async () => {
+    try {
+      const profile = await SupabaseService.getUserProfile();
+      if (profile) {
+        setUsernameState(profile.username ?? null);
+        setDisplayName(profile.display_name ?? null);
+        setProfilePrivate(profile.profile_private ?? true);
+      }
+    } catch (error) {
+      console.warn('[Auth] refreshProfile failed:', error);
+    }
+  }, []);
+
+  const handleSetUsername = useCallback(async (newUsername: string, firstName?: string, lastName?: string) => {
+    await FriendsService.setUsername(newUsername, firstName, lastName);
+    setUsernameState(newUsername);
+    if (firstName || lastName) {
+      setDisplayName([firstName, lastName].filter(Boolean).join(' '));
+    }
+    await refreshProfile();
+  }, [refreshProfile]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -220,10 +278,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSigningIn,
         currentUserId,
         userEmail,
+        username,
+        displayName,
+        hasUsername: username !== null,
+        profilePrivate,
         checkSession,
         signInWithGoogle,
         signOut: handleSignOut,
         deleteAccount,
+        setUsername: handleSetUsername,
+        refreshProfile,
       }}
     >
       {children}

@@ -19,6 +19,15 @@ export enum AnalyticsEvent {
   OnboardingCompleted = 'onboarding_completed',
   // Sync
   SyncCompleted = 'sync_completed',
+  // Social
+  UsernameSet = 'username_set',
+  UserFollowed = 'user_followed',
+  UserUnfollowed = 'user_unfollowed',
+  FollowRequestAccepted = 'follow_request_accepted',
+  FollowRequestRejected = 'follow_request_rejected',
+  FriendPlaceViewed = 'friend_place_viewed',
+  FriendPlaceSaved = 'friend_place_saved',
+  PrivacyToggled = 'privacy_toggled',
 }
 
 class AnalyticsService {

@@ -9,9 +9,10 @@ import { CATEGORY_CONFIG } from '../theme/categoryColors';
 
 interface PlaceCardProps {
   place: SavedPlaceLocal;
+  socialIndicator?: string | null;
 }
 
-export const PlaceCard = React.memo(function PlaceCard({ place }: PlaceCardProps) {
+export const PlaceCard = React.memo(function PlaceCard({ place, socialIndicator }: PlaceCardProps) {
   const colors = useSpotColors();
 
   const config = place.category
@@ -80,6 +81,15 @@ export const PlaceCard = React.memo(function PlaceCard({ place }: PlaceCardProps
             ? `Visited ${relativeDate(place.date_visited)}`
             : `Saved ${relativeDate(place.saved_at)}`}
         </Text>
+
+        {socialIndicator ? (
+          <View style={styles.socialRow}>
+            <Ionicons name="people-outline" size={11} color={colors.spotEmerald} />
+            <Text style={[styles.socialText, { color: colors.spotEmerald }]}>
+              {socialIndicator}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -140,5 +150,16 @@ const styles = StyleSheet.create({
   date: {
     ...SpotTypography.caption,
     opacity: 0.6,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  socialText: {
+    ...SpotTypography.caption,
+    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
   },
 });

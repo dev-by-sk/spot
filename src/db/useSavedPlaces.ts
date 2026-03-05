@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { fetchLocalSavedPlaces } from './database';
 import type { SavedPlaceLocal } from '../types';
 
@@ -11,12 +11,16 @@ interface UseSavedPlacesReturn {
 export function useSavedPlaces(): UseSavedPlacesReturn {
   const [places, setPlaces] = useState<SavedPlaceLocal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const hasLoadedOnce = useRef(false);
 
   const refresh = useCallback(async (userId: string) => {
-    setIsLoading(true);
+    if (!hasLoadedOnce.current) {
+      setIsLoading(true);
+    }
     try {
       const rows = await fetchLocalSavedPlaces(userId);
       setPlaces(rows);
+      hasLoadedOnce.current = true;
     } finally {
       setIsLoading(false);
     }

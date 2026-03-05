@@ -1,24 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Switch,
   StyleSheet,
   ScrollView,
   Linking,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../hooks/useAuth";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { useSpotColors } from "../../theme/colors";
 import { SpotTypography } from "../../theme/typography";
+import { Avatar } from "../../components/Avatar";
 import {
   PRIVACY_POLICY_URL,
   TERMS_OF_SERVICE_URL,
 } from "../../config/constants";
 import { useTheme, type ThemePreference } from "../../context/ThemeContext";
+import * as FriendsService from "../../services/friendsService";
+import type { RootStackParamList } from "../../navigation/types";
 
 const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] =
   [
@@ -28,13 +34,35 @@ const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] =
   ];
 
 export function ProfileScreen() {
-  const { userEmail, signOut, deleteAccount } = useAuth();
+  const { userEmail, username, displayName, profilePrivate, currentUserId, signOut, deleteAccount, refreshProfile } = useAuth();
   const colors = useSpotColors();
   const { preference, setPreference } = useTheme();
   const isOnline = useNetworkStatus();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(profilePrivate);
+  const [counts, setCounts] = useState({ followers_count: 0, following_count: 0 });
 
-  const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
+  useEffect(() => {
+    setIsPrivate(profilePrivate);
+  }, [profilePrivate]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      FriendsService.getSocialCounts(currentUserId)
+        .then(setCounts)
+        .catch(() => {});
+    }
+  }, [currentUserId]);
+
+  const handleTogglePrivacy = async (value: boolean) => {
+    setIsPrivate(value);
+    try {
+      await FriendsService.setProfilePrivacy(value);
+      await refreshProfile();
+    } catch {
+      setIsPrivate(!value);
+    }
+  };
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -72,17 +100,48 @@ export function ProfileScreen() {
       {/* User info section */}
       <View style={styles.section}>
         <View style={styles.userRow}>
-          <View
-            style={[styles.avatar, { backgroundColor: colors.spotEmerald }]}
-          >
-            <Text style={styles.avatarText}>{userInitial}</Text>
+          {username ? (
+            <Avatar username={username} displayName={displayName} size={48} />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: colors.spotEmerald }]}>
+              <Text style={styles.avatarText}>
+                {userEmail ? userEmail.charAt(0).toUpperCase() : "U"}
+              </Text>
+            </View>
+          )}
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text
+              style={[styles.email, { color: colors.spotTextPrimary }]}
+              numberOfLines={1}
+            >
+              {displayName || userEmail || "User"}
+            </Text>
+            {username ? (
+              <Text style={[styles.usernameText, { color: colors.spotTextSecondary }]}>
+                @{username}
+              </Text>
+            ) : null}
           </View>
-          <Text
-            style={[styles.email, { color: colors.spotTextPrimary }]}
-            numberOfLines={1}
-          >
-            {userEmail ?? "User"}
-          </Text>
+        </View>
+        {/* Stats row */}
+        <View style={styles.profileStatsRow}>
+          <View style={styles.profileStatItem}>
+            <Text style={[styles.profileStatCount, { color: colors.spotTextPrimary }]}>
+              {counts.followers_count}
+            </Text>
+            <Text style={[styles.profileStatLabel, { color: colors.spotTextSecondary }]}>
+              followers
+            </Text>
+          </View>
+          <Text style={[styles.profileStatDot, { color: colors.spotTextSecondary }]}>·</Text>
+          <View style={styles.profileStatItem}>
+            <Text style={[styles.profileStatCount, { color: colors.spotTextPrimary }]}>
+              {counts.following_count}
+            </Text>
+            <Text style={[styles.profileStatLabel, { color: colors.spotTextSecondary }]}>
+              following
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -130,6 +189,31 @@ export function ProfileScreen() {
               </TouchableOpacity>
             );
           })}
+        </View>
+      </View>
+
+      {/* Privacy section */}
+      <View style={styles.section}>
+        <Text
+          style={[styles.sectionHeader, { color: colors.spotTextSecondary }]}
+        >
+          PRIVACY
+        </Text>
+        <View style={[styles.row, { borderColor: colors.spotDivider }]}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
+              Private Account
+            </Text>
+            <Text style={[styles.privacyDescription, { color: colors.spotTextSecondary }]}>
+              Only approved followers can see your spots
+            </Text>
+          </View>
+          <Switch
+            value={isPrivate}
+            onValueChange={handleTogglePrivacy}
+            trackColor={{ false: colors.spotDivider, true: colors.spotEmerald }}
+            thumbColor="#FFFFFF"
+          />
         </View>
       </View>
 
@@ -247,7 +331,6 @@ const styles = StyleSheet.create({
   },
   email: {
     ...SpotTypography.headline,
-    flex: 1,
   },
   segmentedRow: {
     flexDirection: "row",
@@ -287,5 +370,32 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     ...SpotTypography.headline,
+  },
+  usernameText: {
+    ...SpotTypography.footnote,
+  },
+  profileStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingTop: 12,
+    paddingLeft: 4,
+  },
+  profileStatItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  profileStatCount: {
+    ...SpotTypography.headline,
+  },
+  profileStatLabel: {
+    ...SpotTypography.footnote,
+  },
+  profileStatDot: {
+    ...SpotTypography.body,
+  },
+  privacyDescription: {
+    ...SpotTypography.caption,
   },
 });
