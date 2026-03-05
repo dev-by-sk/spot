@@ -2,7 +2,7 @@
  * AuthContext and AuthProvider for React Native
  */
 
-import React, { createContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useState, useCallback, useEffect, useRef } from "react";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import {
@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const initialLoadDoneRef = useRef(false);
 
   const checkSession = useCallback(async () => {
     try {
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
+      initialLoadDoneRef.current = true;
     }
   }, []);
 
@@ -80,13 +82,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[Auth] onAuthStateChange event:", event, "session:", !!session);
+      // Skip during initial session check to avoid racing with checkSession()
+      if (!initialLoadDoneRef.current && event === "SIGNED_IN") return;
+
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         if (session?.user) {
           setCurrentUserId(session.user.id);
           setUserEmail(session.user.email ?? null);
           setIsAuthenticated(true);
-          setIsLoading(false);
           analytics.identify(session.user.id, {
             provider: (session.user.app_metadata?.provider as string) ?? "",
           });
@@ -97,14 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserEmail(null);
       }
     });
-    console.log("[Auth] onAuthStateChange listener registered");
     return () => subscription.unsubscribe();
   }, []);
-
-  // Debug: log when isAuthenticated changes
-  useEffect(() => {
-    console.log("[Auth] isAuthenticated changed to:", isAuthenticated, "isLoading:", isLoading);
-  }, [isAuthenticated, isLoading]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!(globalThis as any).crypto?.subtle) {

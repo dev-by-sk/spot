@@ -198,10 +198,16 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
       navigateToSearch();
       return;
     }
-    // Cold start: poll until navigator is ready
+    // Cold start: poll until navigator is ready (max 10s)
+    let attempts = 0;
+    const maxAttempts = 50;
     const interval = setInterval(() => {
+      attempts++;
       if (navigationRef.isReady()) {
         navigateToSearch();
+        clearInterval(interval);
+      } else if (attempts >= maxAttempts) {
+        console.warn("[Share] Navigator not ready after 10s, giving up auto-navigate");
         clearInterval(interval);
       }
     }, 200);

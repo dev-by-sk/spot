@@ -34,18 +34,15 @@ const linking = {
   },
   async getInitialURL() {
     const url = await Linking.getInitialURL();
-    console.log('[Linking] getInitialURL:', url);
     if (url && url.includes('dataUrl=')) {
-      console.log('[Linking] Filtered share intent URL from React Navigation');
       return null;
     }
     return url;
   },
   subscribe(listener: (url: string) => void) {
     const sub = Linking.addEventListener('url', ({ url }) => {
-      console.log('[Linking] Incoming URL:', url);
       if (url.includes('dataUrl=')) {
-        console.log('[Linking] Filtered share intent URL from React Navigation');
+        // Filtered: expo-share-intent handles these
       } else {
         listener(url);
       }
