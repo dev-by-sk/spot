@@ -447,4 +447,165 @@ Remove debug `console.log` statements from `App.tsx` linking config (leftover fr
 | Edge function timeout (free plan = 60s) | Pipeline should complete in 5-15s; add timeout handling just in case |
 | Duplicate shares (user shares same URL twice) | Deduplicate by `(user_id, source_url)` in edge function before processing |
 | Offline sharing from extension | Extension shows "offline" message; cannot queue without main app (acceptable trade-off) |
-| Android support | This plan is iOS-only. Android share intent still uses existing expo-share-intent flow (or a future Android equivalent). Add Android consideration if needed. |
+| Android support | Addressed in Phase 5 below. |
+
+---
+
+## Phase 5: Android Parity
+
+> **Goal:** Make the Android share experience identical to iOS — user shares a URL, sees "Sent to spot!", stays in the source app. Extraction happens server-side.
+
+### 5.1 Architecture
+
+On iOS, the Share Extension runs in a **separate process** and needs App Groups to share the auth token. On Android, the situation is simpler: a second Activity declared in the same app package shares the **same process** and the same `SharedPreferences` — no special IPC needed.
+
+```
+User taps "spot." in Android share sheet
+  → ShareReceiverActivity launches (transparent theme, no UI chrome)
+  → Reads auth token from SharedPreferences
+  → Extracts URL from Intent.EXTRA_TEXT
+  → POSTs to async-extract-place edge function (background thread)
+  → Shows Toast ("Sent to spot!")
+  → Calls finish() — user returns to TikTok/Instagram/browser
+```
+
+The edge function (`supabase/functions/async-extract-place/index.ts`) is already platform-agnostic and requires **no changes**.
+
+### 5.2 Extend `shared-storage` Module for Android
+
+The existing `modules/shared-storage/` only has an iOS implementation wrapping `UserDefaults`. Add an Android implementation wrapping `SharedPreferences` with the same JS API (`setItem`, `getItem`, `removeItem`).
+
+On iOS, the `suiteName` parameter selects a `UserDefaults` suite (the App Group). On Android, the same parameter maps to a named `SharedPreferences` file via `context.getSharedPreferences(suiteName, Context.MODE_PRIVATE)`. We use the same string (`"group.com.spot.app"`) as the preferences file name for consistency.
+
+**Create:**
+
+| File | Details |
+|---|---|
+| `modules/shared-storage/android/build.gradle` | Standard Expo module Gradle config, depends on `expo-modules-core` |
+| `modules/shared-storage/android/src/main/java/expo/modules/sharedstorage/SharedStorageModule.kt` | Kotlin module with `setItem`, `getItem`, `removeItem` wrapping `SharedPreferences` |
+
+**Modify:**
+
+| File | Details |
+|---|---|
+| `modules/shared-storage/expo-module.config.json` | Add `"android"` to `platforms` array, add `"android": { "modules": ["expo.modules.sharedstorage.SharedStorageModule"] }` |
+
+### 5.3 Create `ShareReceiverActivity` (Kotlin)
+
+A lightweight Android `Activity` (NOT `ReactActivity`) with a transparent theme. It has zero React Native overhead so it launches fast.
+
+**Key design choices:**
+- Uses `java.net.HttpURLConnection` (no third-party dependencies)
+- Uses a plain `Thread` for the network call (avoids needing Kotlin coroutines library)
+- Theme is `@android:style/Theme.Translucent.NoTitleBar` so the user sees the source app behind the Toast
+- Supabase URL and anon key are baked into the source at prebuild time (same pattern as the iOS Swift generation)
+
+**Generated path:** `android/app/src/main/java/com/spot/app/ShareReceiverActivity.kt`
+
+**Flow:**
+
+```
+onCreate()
+  → Read EXTRA_TEXT from intent
+  → Extract URL via regex (https?://\S+)
+  → If no URL → Toast "No link found" → finish()
+  → Read token from SharedPreferences("group.com.spot.app", "spot_shared_access_token")
+  → If no token → Toast "Open spot. and sign in first" → finish()
+  → Background thread: POST to edge function
+  → On result → Toast "Sent to spot!" or "Failed to send" → finish()
+```
+
+### 5.4 Extend Config Plugin for Android
+
+The existing `plugins/withAsyncShareExtension.js` currently only has iOS mods. Add two Android mods after the existing iOS mods:
+
+**a) Write the Activity source file** using `withDangerousMod("android", ...)`
+
+Write `ShareReceiverActivity.kt` to `android/app/src/main/java/com/spot/app/` with Supabase credentials substituted (same approach as `generateShareViewController()` for iOS). Use `fs.mkdirSync(activityDir, { recursive: true })` to ensure the directory exists.
+
+**b) Register the Activity in AndroidManifest.xml** using `withAndroidManifest`
+
+```xml
+<activity
+    android:name=".ShareReceiverActivity"
+    android:theme="@android:style/Theme.Translucent.NoTitleBar"
+    android:noHistory="true"
+    android:excludeFromRecents="true"
+    android:exported="true"
+    android:label="spot.">
+    <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+    </intent-filter>
+</activity>
+```
+
+Key manifest attributes:
+- `noHistory="true"` — Activity doesn't appear in recents
+- `excludeFromRecents="true"` — doesn't show in recent apps
+- `exported="true"` — required for other apps to invoke it via share sheet
+
+### 5.5 Disable expo-share-intent on Android
+
+Currently, expo-share-intent adds an `ACTION_SEND` intent filter to `MainActivity`, which causes the main app to open on share. To prevent both Activities from appearing in the share sheet, add `disableAndroid: true` to the expo-share-intent plugin config in `app.config.ts`:
+
+```typescript
+[
+  'expo-share-intent',
+  {
+    disableAndroid: true,  // ← ADD THIS
+    iosActivationRules: {
+      NSExtensionActivationSupportsWebURLWithMaxCount: 1,
+      NSExtensionActivationSupportsText: true,
+    },
+  },
+],
+```
+
+This is an officially supported option (`expo-share-intent/plugin/build/types.d.ts`). When set, it skips `withAndroidIntentFilters` and `withAndroidMainActivityAttributes`, so no `ACTION_SEND` filter is added to `MainActivity`. The JS module (`ShareIntentProvider`, `useShareIntentContext()`) still works on iOS; on Android, `hasShareIntent` will always be `false` — which is exactly what we want.
+
+### 5.6 Update AuthContext.tsx
+
+Remove the `Platform.OS !== "ios"` early-return guards from `storeSharedToken()` and `clearSharedToken()` so the auth token is written to `SharedPreferences` on Android too. The `SharedStorage` module will use `UserDefaults` on iOS and `SharedPreferences` on Android — same JS call, platform-appropriate storage.
+
+### 5.7 Files to Create/Modify
+
+| Action | File | Details |
+|---|---|---|
+| **Create** | `modules/shared-storage/android/build.gradle` | Gradle config for Android SharedPreferences module |
+| **Create** | `modules/shared-storage/android/src/main/java/expo/modules/sharedstorage/SharedStorageModule.kt` | `SharedPreferences` wrapper matching iOS API |
+| **Modify** | `modules/shared-storage/expo-module.config.json` | Add Android platform + module class |
+| **Modify** | `plugins/withAsyncShareExtension.js` | Add `withDangerousMod` (write Activity.kt) + `withAndroidManifest` (register Activity) |
+| **Modify** | `app.config.ts` | Add `disableAndroid: true` to expo-share-intent config |
+| **Modify** | `src/context/AuthContext.tsx` | Remove `Platform.OS !== "ios"` guards |
+
+### 5.8 Testing
+
+1. **SharedStorage module:** Verify `setItem`/`getItem`/`removeItem` work on Android emulator from JS side
+2. **ShareReceiverActivity directly:** `adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://vm.tiktok.com/ZMtest123/" -n com.spot.app/.ShareReceiverActivity`
+3. **End-to-end:** Share from browser on Android emulator → "spot." appears in share sheet → Toast appears → user stays in browser → check `pending_extractions` table for new row
+4. **Edge cases:** No auth token (should show "Open spot. and sign in first"), no URL in shared text ("No link found"), offline ("Failed to send")
+5. **Regression:** Verify iOS share extension still works unchanged, Android app still opens normally via launcher
+
+### 5.9 Risks
+
+| Risk | Mitigation |
+|---|---|
+| Toast is too subtle compared to iOS banner | Can upgrade to a custom overlay View in the Activity later. Start with Toast for simplicity. |
+| SharedPreferences file name with dots (`group.com.spot.app`) | Android allows dots in SharedPreferences file names. This is safe. |
+| `HttpURLConnection` on main thread | The call runs on a background `Thread`. Android will not raise `NetworkOnMainThreadException`. |
+| expo-share-intent `disableAndroid` breaks `ShareIntentProvider` | Verified: `disableAndroid` only disables the config plugin (manifest mods). The JS provider still mounts; `hasShareIntent` stays `false` on Android. |
+| Plugin ordering in `app.config.ts` | `withAsyncShareExtension` is listed before `expo-share-intent`. Since we use `disableAndroid: true`, there is no manifest conflict regardless of ordering. |
+
+---
+
+## Updated Implementation Order (Suggested PRs)
+
+| PR | Phase | Description | Complexity |
+|---|---|---|---|
+| **PR #1** | 1 | Supabase table + `async-extract-place` edge function | Medium |
+| **PR #2** | 3 | Pending tab UI + PendingContext + pendingService | Medium |
+| **PR #3** | 2 | Native iOS Share Extension + config plugin + shared Keychain | **High** |
+| **PR #4** | 5 | Android share parity — SharedStorage Android module, ShareReceiverActivity, config plugin extension | Medium |
+| **PR #5** | 4 | Remove expo-share-intent, cleanup, analytics | Low |

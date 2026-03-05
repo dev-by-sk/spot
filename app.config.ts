@@ -41,6 +41,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-screen-orientation',
     'expo-web-browser',
     'expo-secure-store',
+    './plugins/withAsyncShareExtension',
     [
       'expo-share-intent',
       {

@@ -15,7 +15,31 @@ import { supabase } from "../config/supabase";
 import { clearAllLocalData } from "../db/database";
 import { analytics, AnalyticsEvent } from "../services/analyticsService";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import { Platform } from "react-native";
 import { useToast } from "./ToastContext";
+// Shared storage token for the iOS Share Extension (UserDefaults via App Group)
+const SHARED_TOKEN_KEY = "spot_shared_access_token";
+const APP_GROUP = "group.com.spot.app";
+
+function storeSharedToken(token: string) {
+  if (Platform.OS !== "ios") return;
+  try {
+    const SharedStorage = require("../../modules/shared-storage");
+    SharedStorage.setItem(SHARED_TOKEN_KEY, token, APP_GROUP);
+  } catch (error) {
+    console.warn("[Auth] Failed to store shared token:", error);
+  }
+}
+
+function clearSharedToken() {
+  if (Platform.OS !== "ios") return;
+  try {
+    const SharedStorage = require("../../modules/shared-storage");
+    SharedStorage.removeItem(SHARED_TOKEN_KEY, APP_GROUP);
+  } catch (error) {
+    console.warn("[Auth] Failed to clear shared token:", error);
+  }
+}
 
 export interface AuthContextValue {
   isAuthenticated: boolean;
@@ -60,6 +84,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserEmail(session.email);
         setIsAuthenticated(true);
         analytics.identify(session.userId, { provider: session.provider });
+        // Store token in shared Keychain for the iOS Share Extension
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.access_token) {
+          storeSharedToken(data.session.access_token);
+        }
         try {
           const profile = await SupabaseService.getUserProfile();
           if (profile?.deleted_at) {
@@ -82,6 +111,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // Always sync the shared token for the iOS Share Extension
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        if (session?.access_token) {
+          storeSharedToken(session.access_token);
+        }
+      } else if (event === "SIGNED_OUT") {
+        clearSharedToken();
+      }
+
       // Skip during initial session check to avoid racing with checkSession()
       if (!initialLoadDoneRef.current && event === "SIGNED_IN") return;
 
@@ -202,6 +240,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUserId(sessionData.user.id);
       setUserEmail(sessionData.user.email ?? null);
       setIsAuthenticated(true);
+      if (sessionData.session?.access_token) {
+        storeSharedToken(sessionData.session.access_token);
+      }
 
       analytics.identify(sessionData.user.id, { provider: "google" });
       analytics.track(AnalyticsEvent.SignInCompleted, { provider: "google" });
@@ -233,6 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn("[Auth] Failed to clear local data on sign-out:", error);
     }
 
+    clearSharedToken();
     analytics.track(AnalyticsEvent.SignedOut);
     analytics.reset();
     setIsAuthenticated(false);
@@ -259,6 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error,
         );
       }
+      clearSharedToken();
       analytics.track(AnalyticsEvent.AccountDeleteRequested);
       analytics.reset();
       setIsAuthenticated(false);
