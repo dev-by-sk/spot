@@ -202,6 +202,7 @@ async function callOpenAI(
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(15_000),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -229,11 +230,16 @@ async function callOpenAI(
     return { placeName: null, location: null };
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
-  return {
-    placeName: parsed.placeName ?? null,
-    location: parsed.location ?? null,
-  };
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      placeName: parsed.placeName ?? null,
+      location: parsed.location ?? null,
+    };
+  } catch {
+    console.warn("[async-extract] Failed to parse LLM JSON output:", jsonMatch[0]);
+    return { placeName: null, location: null };
+  }
 }
 
 // --- Google Places helpers ---
@@ -241,6 +247,9 @@ async function searchGooglePlaces(query: string): Promise<string | null> {
   const googleUrl = `${GOOGLE_BASE}/textsearch/json?query=${encodeURIComponent(query)}&type=establishment&key=${GOOGLE_API_KEY}`;
   const res = await fetch(googleUrl);
   const data = await res.json();
+  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+    throw new Error(`Google Places search error: ${data.status} — ${data.error_message ?? ""}`);
+  }
   const results = data.results || [];
   return results.length > 0 ? results[0].place_id : null;
 }
@@ -267,8 +276,12 @@ async function getGooglePlaceDetails(placeId: string): Promise<PlaceDetails> {
   const googleUrl = `${GOOGLE_BASE}/details/json?place_id=${placeId}&fields=${fields}&key=${GOOGLE_API_KEY}`;
   const res = await fetch(googleUrl);
   const data = await res.json();
-  const r = data.result;
 
+  if (data.status !== "OK") {
+    throw new Error(`Google Places details error: ${data.status} — ${data.error_message ?? ""}`);
+  }
+
+  const r = data.result;
   if (!r) {
     throw new Error("Place not found in Google Places");
   }
@@ -277,8 +290,8 @@ async function getGooglePlaceDetails(placeId: string): Promise<PlaceDetails> {
     google_place_id: r.place_id,
     place_name: r.name || "",
     place_address: r.formatted_address || "",
-    place_lat: r.geometry?.location?.lat || 0,
-    place_lng: r.geometry?.location?.lng || 0,
+    place_lat: r.geometry?.location?.lat ?? 0,
+    place_lng: r.geometry?.location?.lng ?? 0,
     place_rating: r.rating || 0,
     place_price_level: r.price_level || 0,
     place_category: mapCategory(r.types || []),
@@ -429,10 +442,33 @@ async function insertSavedPlace(
 }
 
 // --- URL validation ---
+function isPrivateHostname(hostname: string): boolean {
+  // Block localhost
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]") {
+    return true;
+  }
+  // Block private IP ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x)
+  const parts = hostname.split(".").map(Number);
+  if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
+    if (parts[0] === 10) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    if (parts[0] === 169 && parts[1] === 254) return true; // cloud metadata
+    if (parts[0] === 0) return true;
+  }
+  return false;
+}
+
 function isValidUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+    if (isPrivateHostname(parsed.hostname)) {
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }

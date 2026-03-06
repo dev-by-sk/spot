@@ -26,7 +26,7 @@ const withAsyncShareExtension = (config) => {
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("[withAsyncShareExtension] SUPABASE_URL or SUPABASE_ANON_KEY not set");
+      throw new Error("[withAsyncShareExtension] SUPABASE_URL and SUPABASE_ANON_KEY must be set — the Share Extension will not work without them");
     }
 
     fs.writeFileSync(
@@ -45,6 +45,7 @@ function generateShareViewController(supabaseUrl, supabaseAnonKey) {
   const escapedKey = supabaseAnonKey.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
   return `import UIKit
+import Security
 
 class ShareViewController: UIViewController {
   private let appGroupIdentifier = "${APP_GROUP}"
@@ -148,7 +149,17 @@ class ShareViewController: UIViewController {
   }
 
   private func readAuthToken() -> String? {
-    return UserDefaults(suiteName: appGroupIdentifier)?.string(forKey: tokenKey)
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrAccount as String: tokenKey,
+      kSecAttrAccessGroup as String: appGroupIdentifier,
+      kSecReturnData as String: true,
+      kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    var result: AnyObject?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    guard status == errSecSuccess, let data = result as? Data else { return nil }
+    return String(data: data, encoding: .utf8)
   }
 
   @MainActor

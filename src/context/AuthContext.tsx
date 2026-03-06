@@ -17,7 +17,7 @@ import { analytics, AnalyticsEvent } from "../services/analyticsService";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { Platform } from "react-native";
 import { useToast } from "./ToastContext";
-// Shared storage token for the iOS Share Extension (UserDefaults via App Group)
+// Shared storage token for the iOS Share Extension (Keychain via App Group)
 const SHARED_TOKEN_KEY = "spot_shared_access_token";
 const APP_GROUP = "group.com.spot.app";
 

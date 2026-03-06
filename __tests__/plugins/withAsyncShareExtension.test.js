@@ -182,8 +182,8 @@ describe("withAsyncShareExtension", () => {
       expect(content).toContain("\\\\");
     });
 
-    it("generates valid Swift even when env vars are empty", () => {
-      // No env vars set — defaults to ""
+    it("throws when env vars are missing", () => {
+      // No env vars set — should throw instead of generating a broken extension
       fs.existsSync.mockReturnValue(true);
       fs.writeFileSync.mockImplementation(() => {});
 
@@ -193,12 +193,11 @@ describe("withAsyncShareExtension", () => {
       };
 
       const withAsyncShareExtension = loadPlugin();
-      withAsyncShareExtension(config);
+      expect(() => withAsyncShareExtension(config)).toThrow(
+        "SUPABASE_URL and SUPABASE_ANON_KEY must be set"
+      );
 
-      const content = fs.writeFileSync.mock.calls[0][1];
-      // Should still produce syntactically valid Swift with empty strings
-      expect(content).toContain('private let supabaseUrl = ""');
-      expect(content).toContain('private let supabaseAnonKey = ""');
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
     it("generated Swift reads auth token from the correct App Group", () => {
@@ -224,14 +223,7 @@ describe("withAsyncShareExtension", () => {
       expect(content).toContain('"spot_shared_access_token"');
     });
 
-    // FLAG: The generated Swift uses string interpolation \(supabaseUrl) for the
-    // endpoint URL. If supabaseUrl is empty, the extension will POST to
-    // "/functions/v1/async-extract-place" (no host) which will silently fail.
-    // The plugin only warns but doesn't prevent generation. This means a misconfigured
-    // build produces an extension that appears to work but always fails.
-    it("warns when SUPABASE_URL or SUPABASE_ANON_KEY are missing", () => {
-      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-
+    it("throws when SUPABASE_URL or SUPABASE_ANON_KEY are missing", () => {
       fs.existsSync.mockReturnValue(true);
       fs.writeFileSync.mockImplementation(() => {});
 
@@ -241,13 +233,9 @@ describe("withAsyncShareExtension", () => {
       };
 
       const withAsyncShareExtension = loadPlugin();
-      withAsyncShareExtension(config);
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("SUPABASE_URL or SUPABASE_ANON_KEY not set")
+      expect(() => withAsyncShareExtension(config)).toThrow(
+        "SUPABASE_URL and SUPABASE_ANON_KEY must be set"
       );
-
-      warnSpy.mockRestore();
     });
   });
 
