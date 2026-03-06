@@ -51,9 +51,7 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
           showToast({
             text: "You're offline. Share extraction unavailable.",
             type: "error",
-          }); 
-          type: "error",
-        });
+          });
         return;
       }
       setIsExtracting(true);

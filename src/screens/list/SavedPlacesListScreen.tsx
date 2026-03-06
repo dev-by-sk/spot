@@ -43,6 +43,7 @@ import { FilterSheet } from "../../components/FilterSheet";
 import { EditNoteModal } from "./EditNoteModal";
 import { SpotMapView } from "../../components/SpotMapView";
 import { useSpotColors, spotEmerald } from "../../theme/colors";
+import { useTheme } from "../../context/ThemeContext";
 import { SpotTypography } from "../../theme/typography";
 import type { SavedPlaceLocal } from "../../types";
 import { isPlaceOpenNow } from "../../utils/openingHours";
@@ -71,6 +72,7 @@ export function SavedPlacesListScreen() {
   } = usePlaces();
   const { currentUserId } = useAuth();
   const colors = useSpotColors();
+  const { resolvedScheme } = useTheme();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
@@ -511,6 +513,7 @@ export function SavedPlacesListScreen() {
           maxToRenderPerBatch={8}
           windowSize={7}
           removeClippedSubviews={true}
+          style={{ backgroundColor: colors.spotBackground }}
           contentContainerStyle={[
             { flexGrow: 1 },
             filteredPlaces.length > 0 && styles.listContent,
@@ -574,7 +577,7 @@ export function SavedPlacesListScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor={colors.spotEmerald}
+              tintColor={resolvedScheme === 'dark' ? '#FFFFFF' : colors.spotEmerald}
             />
           }
         />
