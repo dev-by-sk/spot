@@ -344,74 +344,87 @@ function mapCuisine(types: string[]): string {
 }
 
 // --- Database helpers ---
-async function checkDuplicate(
+function detectSourceNote(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname.includes("tiktok.com")) return "From TikTok";
+    if (hostname.includes("instagram.com")) return "From Instagram";
+    return "From web";
+  } catch {
+    return "From web";
+  }
+}
+
+async function checkDuplicateSavedPlace(
   client: ReturnType<typeof createClient>,
   userId: string,
-  sourceUrl: string,
-): Promise<{ isDuplicate: boolean; existingRow?: Record<string, unknown> }> {
+  googlePlaceId: string,
+): Promise<boolean> {
   const { data, error } = await client
-    .from("pending_extractions")
-    .select("*")
+    .from("saved_places")
+    .select("id")
     .eq("user_id", userId)
-    .eq("source_url", sourceUrl)
-    .is("reviewed_at", null)
+    .eq("google_place_id", googlePlaceId)
     .maybeSingle();
 
   if (error) {
-    console.error("[async-extract] Dedup check error:", error);
-    return { isDuplicate: false };
+    console.error("[async-extract] Duplicate check error:", error);
+    return false;
   }
 
-  return data
-    ? { isDuplicate: true, existingRow: data }
-    : { isDuplicate: false };
+  return data !== null;
 }
 
-async function insertPendingRow(
+async function upsertPlaceCache(
   client: ReturnType<typeof createClient>,
-  userId: string,
-  sourceUrl: string,
-): Promise<string> {
-  const { data, error } = await client
-    .from("pending_extractions")
-    .insert({ user_id: userId, source_url: sourceUrl, status: "processing" })
-    .select("id")
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to insert pending row: ${error.message}`);
-  }
-
-  return data.id;
-}
-
-async function markCompleted(
-  client: ReturnType<typeof createClient>,
-  rowId: string,
   placeData: PlaceDetails,
 ): Promise<void> {
-  const { error } = await client
-    .from("pending_extractions")
-    .update({ status: "completed", ...placeData })
-    .eq("id", rowId);
+  const { error } = await client.from("place_cache").upsert(
+    {
+      google_place_id: placeData.google_place_id,
+      name: placeData.place_name,
+      address: placeData.place_address,
+      lat: placeData.place_lat,
+      lng: placeData.place_lng,
+      rating: placeData.place_rating,
+      price_level: placeData.place_price_level,
+      category: placeData.place_category,
+      cuisine: placeData.place_cuisine,
+      website: placeData.place_website,
+      phone_number: placeData.place_phone_number,
+      opening_hours: placeData.place_opening_hours
+        ? JSON.stringify(placeData.place_opening_hours)
+        : null,
+      opening_hours_periods: placeData.place_opening_hours_periods
+        ? JSON.stringify(placeData.place_opening_hours_periods)
+        : null,
+      last_refreshed: new Date().toISOString(),
+    },
+    { onConflict: "google_place_id" },
+  );
 
   if (error) {
-    throw new Error(`Failed to mark completed: ${error.message}`);
+    throw new Error(`Failed to upsert place_cache: ${error.message}`);
   }
 }
 
-async function markFailed(
+async function insertSavedPlace(
   client: ReturnType<typeof createClient>,
-  rowId: string,
-  errorMessage: string,
+  userId: string,
+  googlePlaceId: string,
+  noteText: string,
 ): Promise<void> {
-  const { error } = await client
-    .from("pending_extractions")
-    .update({ status: "failed", error_message: errorMessage })
-    .eq("id", rowId);
+  const { error } = await client.from("saved_places").insert({
+    id: crypto.randomUUID(),
+    user_id: userId,
+    google_place_id: googlePlaceId,
+    note_text: noteText,
+    date_visited: null,
+    saved_at: new Date().toISOString(),
+  });
 
   if (error) {
-    console.error("[async-extract] Failed to mark failed:", error);
+    throw new Error(`Failed to insert saved_place: ${error.message}`);
   }
 }
 
@@ -475,29 +488,7 @@ serve(async (req) => {
       );
     }
 
-    const serviceClient = getServiceClient();
-
-    // 4. Dedup check
-    const { isDuplicate, existingRow } = await checkDuplicate(
-      serviceClient,
-      user.id,
-      sourceUrl,
-    );
-
-    if (isDuplicate) {
-      return Response.json(
-        {
-          queued: false,
-          status:
-            (existingRow as Record<string, unknown>)?.status ?? "processing",
-          message: "Extraction already exists for this URL",
-          id: (existingRow as Record<string, unknown>)?.id,
-        },
-        { headers: corsHeaders },
-      );
-    }
-
-    // 5. Validate env vars
+    // 4. Validate env vars
     if (!OPENAI_API_KEY) {
       return Response.json(
         { error: "OPENAI_API_KEY not configured" },
@@ -512,10 +503,9 @@ serve(async (req) => {
       );
     }
 
-    // 6. Insert pending row
-    const rowId = await insertPendingRow(serviceClient, user.id, sourceUrl);
+    const serviceClient = getServiceClient();
 
-    // 7. Run full pipeline in the background — return immediately so the
+    // 5. Run full pipeline in the background — return immediately so the
     //    share extension can dismiss and the user keeps scrolling.
     const pipelinePromise = (async () => {
       try {
@@ -548,15 +538,38 @@ serve(async (req) => {
         // e. Get full place details
         const placeData = await getGooglePlaceDetails(placeId);
 
-        // f. Mark completed
-        await markCompleted(serviceClient, rowId, placeData);
+        // f. Check for duplicate in saved_places
+        const isDuplicate = await checkDuplicateSavedPlace(
+          serviceClient,
+          user.id,
+          placeData.google_place_id,
+        );
+        if (isDuplicate) {
+          console.log(
+            `[async-extract] Skipping duplicate: ${placeData.place_name} (${placeData.google_place_id})`,
+          );
+          return;
+        }
+
+        // g. Upsert place_cache and insert saved_place
+        const noteText = detectSourceNote(sourceUrl);
+        await upsertPlaceCache(serviceClient, placeData);
+        await insertSavedPlace(
+          serviceClient,
+          user.id,
+          placeData.google_place_id,
+          noteText,
+        );
+
+        console.log(
+          `[async-extract] Saved: ${placeData.place_name} for user ${user.id}`,
+        );
       } catch (pipelineError) {
         const errorMsg =
           pipelineError instanceof Error
             ? pipelineError.message
             : "Unknown pipeline error";
         console.error("[async-extract] Pipeline error:", errorMsg);
-        await markFailed(serviceClient, rowId, errorMsg);
       }
     })();
 
@@ -565,8 +578,8 @@ serve(async (req) => {
     // @ts-ignore — EdgeRuntime is a Supabase global, not in Deno typings
     EdgeRuntime.waitUntil(pipelinePromise);
 
-    // 8. Return immediately
-    return Response.json({ queued: true, id: rowId }, { headers: corsHeaders });
+    // 6. Return immediately
+    return Response.json({ queued: true }, { headers: corsHeaders });
   } catch (error) {
     console.error("[async-extract] Error:", error);
     return Response.json(
