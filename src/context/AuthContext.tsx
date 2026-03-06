@@ -111,15 +111,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Always sync the shared token for the iOS Share Extension
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        if (session?.access_token) {
-          storeSharedToken(session.access_token);
-        }
-      } else if (event === "SIGNED_OUT") {
-        clearSharedToken();
-      }
-
+// Always sync the shared token for the iOS Share Extension
+if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+  if (session?.access_token) {
+    storeSharedToken(session.access_token);
+  }
+} else if (event === "SIGNED_OUT") {
+  clearSharedToken();
+}
       // Skip during initial session check to avoid racing with checkSession()
       if (!initialLoadDoneRef.current && event === "SIGNED_IN") return;
 

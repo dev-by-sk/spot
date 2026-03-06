@@ -62,9 +62,11 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
   const testExtract = useCallback(
     async (url: string) => {
       if (!isOnline) {
-        setExtractionError("You're offline. Share extraction unavailable.");
-        showToast({
-          text: "You're offline. Share extraction unavailable.",
+          setExtractionError("You're offline. Share extraction unavailable.");
+          showToast({
+            text: "You're offline. Share extraction unavailable.",
+            type: "error",
+          }); 
           type: "error",
         });
         return;
