@@ -18,7 +18,7 @@ const withAsyncShareExtension = (config) => {
     const extensionDir = path.join(config.modRequest.projectRoot, "ios", "ShareExtension");
 
     if (!fs.existsSync(extensionDir)) {
-      console.warn("[withAsyncShareExtension] ShareExtension directory not found — ensure expo-share-intent is listed before this plugin");
+      console.warn("[withAsyncShareExtension] ShareExtension directory not found — expo-share-intent must be in plugins to create the Xcode target");
       return config;
     }
 
