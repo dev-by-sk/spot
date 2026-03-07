@@ -9,7 +9,7 @@
  */
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { SearchScreen } from '../SearchScreen';
+import { SearchScreen } from '../../src/screens/search/SearchScreen';
 
 // ── Mocks ──
 
@@ -18,7 +18,7 @@ const mockSearch = jest.fn().mockResolvedValue(undefined);
 const mockSavePlace = jest.fn();
 const mockSetSearchQuery = jest.fn();
 
-jest.mock('../../../hooks/usePlaces', () => ({
+jest.mock('../../src/hooks/usePlaces', () => ({
   usePlaces: () => ({
     isOnline: true,
     searchQuery: 'pizza',
@@ -34,17 +34,17 @@ jest.mock('../../../hooks/usePlaces', () => ({
   }),
 }));
 
-jest.mock('../../../hooks/useAuth', () => ({
+jest.mock('../../src/hooks/useAuth', () => ({
   useAuth: () => ({ currentUserId: 'user-123' }),
 }));
 
 // Return empty string so pendingDispatch is false (debouncedQuery.trim().length > 0 fails),
 // while searchQuery ('pizza') is still truthy so FlatList renders with searchResults.
-jest.mock('../../../hooks/useDebounce', () => ({
+jest.mock('../../src/hooks/useDebounce', () => ({
   useDebounce: () => '',
 }));
 
-jest.mock('../../../context/ShareContext', () => ({
+jest.mock('../../src/context/ShareContext', () => ({
   useShare: () => ({
     pendingPlace: null,
     isExtracting: false,
@@ -54,7 +54,7 @@ jest.mock('../../../context/ShareContext', () => ({
   }),
 }));
 
-jest.mock('../../../theme/colors', () => ({
+jest.mock('../../src/theme/colors', () => ({
   useSpotColors: () => ({
     spotBackground: '#fff',
     spotSearchBar: '#f0f0f0',
@@ -64,7 +64,7 @@ jest.mock('../../../theme/colors', () => ({
   }),
 }));
 
-jest.mock('../../../theme/typography', () => ({
+jest.mock('../../src/theme/typography', () => ({
   SpotTypography: {
     body: { fontSize: 16 },
     headline: { fontSize: 18, fontWeight: '600' },
@@ -72,11 +72,11 @@ jest.mock('../../../theme/typography', () => ({
   },
 }));
 
-jest.mock('../../../config/constants', () => ({
+jest.mock('../../src/config/constants', () => ({
   SEARCH_DEBOUNCE_MS: 0,
 }));
 
-jest.mock('../SaveConfirmationModal', () => ({
+jest.mock('../../src/screens/search/SaveConfirmationModal', () => ({
   SaveConfirmationModal: () => null,
 }));
 

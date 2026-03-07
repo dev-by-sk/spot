@@ -1,10 +1,10 @@
-import { supabase } from "../config/supabase";
+import { supabase } from '../config/supabase';
 import type {
   UserSession,
   UserProfile,
   SavedPlaceDTO,
   PlaceCacheDTO,
-} from "../types";
+} from '../types';
 
 // ── Auth ──
 
@@ -15,7 +15,7 @@ export async function getCurrentSession(): Promise<UserSession | null> {
   return {
     userId: user.id,
     email: user.email ?? null,
-    provider: (user.app_metadata?.provider as string) ?? "",
+    provider: (user.app_metadata?.provider as string) ?? '',
   };
 }
 
@@ -24,7 +24,7 @@ export async function signInWithGoogle(
   accessToken: string,
 ): Promise<string> {
   const { data, error } = await supabase.auth.signInWithIdToken({
-    provider: "google",
+    provider: 'google',
     token: idToken,
     access_token: accessToken,
   });
@@ -41,13 +41,13 @@ export async function signOut(): Promise<void> {
 // ── Account Management ──
 
 export async function softDeleteAccount(): Promise<void> {
-  const { error } = await supabase.rpc("soft_delete_account");
+  const { error } = await supabase.rpc('soft_delete_account');
   if (error) throw error;
   await signOut();
 }
 
 export async function cancelDeleteAccount(): Promise<void> {
-  const { error } = await supabase.rpc("cancel_delete_account");
+  const { error } = await supabase.rpc('cancel_delete_account');
   if (error) throw error;
 }
 
@@ -68,44 +68,41 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
 export async function fetchSavedPlaces(): Promise<SavedPlaceDTO[]> {
   const { data, error } = await supabase
-    .from("saved_places")
-    .select("*, place_cache(*)")
-    .order("saved_at", { ascending: false });
+    .from('saved_places')
+    .select('*, place_cache(*)')
+    .order('saved_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as SavedPlaceDTO[];
 }
 
-export async function uploadSavedPlace(
-  place: Omit<SavedPlaceDTO, "place_cache">,
-): Promise<void> {
-  const { error } = await supabase.from("saved_places").upsert(place);
+export async function uploadSavedPlace(place: Omit<SavedPlaceDTO, 'place_cache'>): Promise<void> {
+  const { error } = await supabase.from('saved_places').upsert(place);
   if (error) throw error;
 }
 
-export async function updateSavedPlaceNote(
-  id: string,
-  note: string,
-  dateVisited?: string | null,
-): Promise<void> {
+export async function updateSavedPlaceNote(id: string, note: string, dateVisited?: string | null): Promise<void> {
   const updateData: Record<string, unknown> = { note_text: note };
   if (dateVisited !== undefined) {
     updateData.date_visited = dateVisited;
   }
   const { error } = await supabase
-    .from("saved_places")
+    .from('saved_places')
     .update(updateData)
-    .eq("id", id);
+    .eq('id', id);
   if (error) throw error;
 }
 
 export async function deleteSavedPlace(id: string): Promise<void> {
-  const { error } = await supabase.from("saved_places").delete().eq("id", id);
+  const { error } = await supabase
+    .from('saved_places')
+    .delete()
+    .eq('id', id);
   if (error) throw error;
 }
 
 // ── Place Cache ──
 
 export async function upsertPlaceCache(place: PlaceCacheDTO): Promise<void> {
-  const { error } = await supabase.from("place_cache").upsert(place);
+  const { error } = await supabase.from('place_cache').upsert(place);
   if (error) throw error;
 }

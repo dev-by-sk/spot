@@ -10,7 +10,7 @@ const mockInsert = jest.fn();
 const mockUpsert = jest.fn();
 const mockFrom = jest.fn();
 
-jest.mock("../../config/supabase", () => ({
+jest.mock("../../src/config/supabase", () => ({
   supabase: {
     auth: {
       getSession: jest.fn().mockResolvedValue({
@@ -24,7 +24,7 @@ jest.mock("../../config/supabase", () => ({
   },
 }));
 
-import { uploadSavedPlace } from "../supabaseService";
+import { uploadSavedPlace } from "../../src/services/supabaseService";
 
 beforeEach(() => {
   jest.clearAllMocks();

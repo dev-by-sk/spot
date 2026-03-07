@@ -9,18 +9,20 @@ interface UseSavedPlacesReturn {
 }
 
 export function useSavedPlaces(): UseSavedPlacesReturn {
-  const [places, setPlaces] = useState<SavedPlaceLocal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [state, setState] = useState<{ places: SavedPlaceLocal[]; isLoading: boolean }>({
+    places: [],
+    isLoading: true,
+  });
 
   const refresh = useCallback(async (userId: string) => {
-    setIsLoading(true);
+    setState((prev) => ({ ...prev, isLoading: true }));
     try {
       const rows = await fetchLocalSavedPlaces(userId);
-      setPlaces(rows);
-    } finally {
-      setIsLoading(false);
+      setState({ places: rows, isLoading: false });
+    } catch {
+      setState((prev) => ({ ...prev, isLoading: false }));
     }
   }, []);
 
-  return { places, isLoading, refresh };
+  return { places: state.places, isLoading: state.isLoading, refresh };
 }

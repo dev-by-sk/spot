@@ -2,13 +2,7 @@
  * AuthContext and AuthProvider for React Native
  */
 
-import React, {
-  createContext,
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-} from "react";
+import React, { createContext, useState, useCallback, useEffect, useRef } from "react";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import {
@@ -22,8 +16,6 @@ import { clearAllLocalData } from "../db/database";
 import { analytics, AnalyticsEvent } from "../services/analyticsService";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useToast } from "./ToastContext";
-
-WebBrowser.maybeCompleteAuthSession();
 
 export interface AuthContextValue {
   isAuthenticated: boolean;
@@ -72,6 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [username, setUsernameState] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [profilePrivate, setProfilePrivate] = useState(true);
+  const initialLoadDoneRef = useRef(false);
+  const isHandlingSignInRef = useRef(false);
 
   const applyProfile = useCallback((profile: import("../types").UserProfile) => {
     setUsernameState(profile.username ?? null);
@@ -91,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkSession = useCallback(async () => {
     try {
       const session = await SupabaseService.getCurrentSession();
+
       if (session) {
         setCurrentUserId(session.userId);
         setUserEmail(session.email);
@@ -110,8 +105,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
+      initialLoadDoneRef.current = true;
     }
   }, [applyProfile]);
+
+  // Listen for session changes (e.g., session restored from SecureStore after cold start)
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Skip during initial session check to avoid racing with checkSession()
+      if (!initialLoadDoneRef.current && event === "SIGNED_IN") return;
+      // Skip SIGNED_IN fired by exchangeCodeForSession — signInWithGoogle handles it
+      if (isHandlingSignInRef.current && event === "SIGNED_IN") return;
+
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        if (session?.user) {
+          setCurrentUserId(session.user.id);
+          setUserEmail(session.user.email ?? null);
+          setIsAuthenticated(true);
+          analytics.identify(session.user.id, {
+            provider: (session.user.app_metadata?.provider as string) ?? "",
+          });
+        }
+      } else if (event === "SIGNED_OUT") {
+        setIsAuthenticated(false);
+        setCurrentUserId(null);
+        setUserEmail(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const signInWithGoogle = useCallback(async () => {
     if (!(globalThis as any).crypto?.subtle) {
@@ -159,8 +183,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setIsSigningIn(true);
+    isHandlingSignInRef.current = true;
     try {
-      const redirectUri = AuthSession.makeRedirectUri();
+      const redirectUri = AuthSession.makeRedirectUri({ path: "auth-callback" });
       console.log("[Auth] Google OAuth redirect URI:", redirectUri);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -209,6 +234,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Fetch profile before setting isAuthenticated so hasUsername is correct
+      // on first render — prevents flash of UsernameSetupScreen for existing users
+      try {
+        const profile = await SupabaseService.getUserProfile();
+        if (profile) applyProfile(profile);
+      } catch {
+        // non-fatal
+      }
+
       setCurrentUserId(sessionData.user.id);
       setUserEmail(sessionData.user.email ?? null);
       setIsAuthenticated(true);
@@ -223,9 +257,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         action: { label: "Retry", onPress: () => signInWithGoogle() },
       });
     } finally {
+      isHandlingSignInRef.current = false;
       setIsSigningIn(false);
     }
-  }, [showToast]);
+  }, [showToast, applyProfile]);
 
   const handleSignOut = useCallback(async () => {
     if (isOnline) {

@@ -62,7 +62,6 @@ export function SavedPlacesListScreen() {
   const {
     savedPlaces,
     isLoadingPlaces,
-    refreshPlaces,
     deletePlaceById,
     updateNote,
     selectedFilter,
@@ -121,13 +120,10 @@ export function SavedPlacesListScreen() {
   const [listSearchQuery, setListSearchQuery] = useState("");
 
   useEffect(() => {
-    if (currentUserId && isFocused) {
-      refreshPlaces(currentUserId);
-    }
     if (!isFocused) {
       openSwipeableRef.current?.close();
     }
-  }, [currentUserId, isFocused, refreshPlaces]);
+  }, [isFocused]);
 
   useEffect(() => {
     (async () => {

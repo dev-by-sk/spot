@@ -40,11 +40,9 @@ export function RootNavigator() {
       initialCheckDone.current = true;
       if (isAuthenticated) {
         wasAuthenticated.current = true;
-      } else {
-        // No valid session on startup → restart from onboarding
-        AsyncStorage.setItem(ONBOARDING_KEY, 'false');
-        setHasSeenOnboarding(false);
       }
+      // If not authenticated on startup, just show login — don't reset onboarding.
+      // Onboarding is only reset on explicit sign-out (below).
       return;
     }
 
