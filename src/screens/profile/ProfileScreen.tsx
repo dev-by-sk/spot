@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../hooks/useAuth";
+import { Avatar } from "../../components/Avatar";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { useSpotColors } from "../../theme/colors";
 import { SpotTypography } from "../../theme/typography";
@@ -28,13 +29,13 @@ const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] =
   ];
 
 export function ProfileScreen() {
-  const { userEmail, signOut, deleteAccount } = useAuth();
+  const { userEmail, username, displayName, signOut, deleteAccount } = useAuth();
   const colors = useSpotColors();
   const { preference, setPreference } = useTheme();
   const isOnline = useNetworkStatus();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U";
+  const avatarUsername = username ?? (userEmail?.split('@')[0] ?? 'user');
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -72,17 +73,23 @@ export function ProfileScreen() {
       {/* User info section */}
       <View style={styles.section}>
         <View style={styles.userRow}>
-          <View
-            style={[styles.avatar, { backgroundColor: colors.spotEmerald }]}
-          >
-            <Text style={styles.avatarText}>{userInitial}</Text>
+          <Avatar username={avatarUsername} displayName={displayName} size={48} />
+          <View style={styles.userInfo}>
+            <Text
+              style={[styles.displayName, { color: colors.spotTextPrimary }]}
+              numberOfLines={1}
+            >
+              {displayName ?? userEmail ?? "User"}
+            </Text>
+            {username ? (
+              <Text
+                style={[styles.usernameText, { color: colors.spotTextSecondary }]}
+                numberOfLines={1}
+              >
+                @{username}
+              </Text>
+            ) : null}
           </View>
-          <Text
-            style={[styles.email, { color: colors.spotTextPrimary }]}
-            numberOfLines={1}
-          >
-            {userEmail ?? "User"}
-          </Text>
         </View>
       </View>
 
@@ -143,6 +150,7 @@ export function ProfileScreen() {
         <TouchableOpacity
           style={[styles.row, { borderColor: colors.spotDivider }]}
           onPress={handleDeleteAccount}
+          activeOpacity={0.7}
         >
           <Text style={[styles.rowLabel, { color: colors.spotDanger }]}>
             Delete Account
@@ -160,6 +168,7 @@ export function ProfileScreen() {
         <TouchableOpacity
           style={[styles.row, { borderColor: colors.spotDivider }]}
           onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+          activeOpacity={0.7}
         >
           <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
             Privacy Policy
@@ -173,6 +182,7 @@ export function ProfileScreen() {
         <TouchableOpacity
           style={[styles.row, { borderColor: colors.spotDivider }]}
           onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+          activeOpacity={0.7}
         >
           <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
             Terms of Service
@@ -234,20 +244,15 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    ...SpotTypography.title3,
-    color: "#FFFFFF",
-  },
-  email: {
-    ...SpotTypography.headline,
+  userInfo: {
     flex: 1,
+    gap: 2,
+  },
+  displayName: {
+    ...SpotTypography.headline,
+  },
+  usernameText: {
+    ...SpotTypography.footnote,
   },
   segmentedRow: {
     flexDirection: "row",

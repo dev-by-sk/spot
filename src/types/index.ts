@@ -12,6 +12,11 @@ export interface UserProfile {
   auth_provider: string;
   created_at: string;
   deleted_at: string | null;
+  username: string | null;
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  profile_private: boolean;
 }
 
 // ── Place DTOs (snake_case — matches Supabase columns) ──

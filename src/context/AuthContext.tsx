@@ -31,10 +31,16 @@ export interface AuthContextValue {
   isSigningIn: boolean;
   currentUserId: string | null;
   userEmail: string | null;
+  username: string | null;
+  displayName: string | null;
+  hasUsername: boolean;
+  profilePrivate: boolean;
   checkSession: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+  setUsername: (username: string, firstName?: string, lastName?: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
@@ -43,10 +49,16 @@ export const AuthContext = createContext<AuthContextValue>({
   isSigningIn: false,
   currentUserId: null,
   userEmail: null,
+  username: null,
+  displayName: null,
+  hasUsername: false,
+  profilePrivate: true,
   checkSession: async () => {},
   signInWithGoogle: async () => {},
   signOut: async () => {},
   deleteAccount: async () => {},
+  setUsername: async () => {},
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -57,6 +69,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [username, setUsernameState] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [profilePrivate, setProfilePrivate] = useState(true);
+
+  const applyProfile = useCallback((profile: import("../types").UserProfile) => {
+    setUsernameState(profile.username ?? null);
+    setDisplayName(profile.display_name ?? null);
+    setProfilePrivate(profile.profile_private ?? true);
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const profile = await SupabaseService.getUserProfile();
+      if (profile) applyProfile(profile);
+    } catch (error) {
+      console.warn("[Auth] refreshProfile failed:", error);
+    }
+  }, [applyProfile]);
 
   const checkSession = useCallback(async () => {
     try {
@@ -71,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (profile?.deleted_at) {
             await SupabaseService.cancelDeleteAccount();
           }
+          if (profile) applyProfile(profile);
         } catch (error) {
           console.warn("[Auth] Profile fetch failed:", error);
         }
@@ -80,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyProfile]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!(globalThis as any).crypto?.subtle) {
@@ -217,6 +248,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     setCurrentUserId(null);
     setUserEmail(null);
+    setUsernameState(null);
+    setDisplayName(null);
+    setProfilePrivate(true);
   }, [isOnline]);
 
   const deleteAccount = useCallback(async () => {
@@ -243,6 +277,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(false);
       setCurrentUserId(null);
       setUserEmail(null);
+      setUsernameState(null);
+      setDisplayName(null);
+      setProfilePrivate(true);
     } catch {
       showToast({
         text: "Failed to delete account, please try again",
@@ -253,6 +290,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isOnline, showToast]);
 
+  const handleSetUsername = useCallback(
+    async (newUsername: string, firstName?: string, lastName?: string) => {
+      const { error } = await supabase.rpc("set_username", {
+        new_username: newUsername,
+        p_first_name: firstName ?? null,
+        p_last_name: lastName ?? null,
+      });
+      if (error) throw error;
+      await refreshProfile();
+    },
+    [refreshProfile],
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -261,10 +311,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSigningIn,
         currentUserId,
         userEmail,
+        username,
+        displayName,
+        hasUsername: username !== null,
+        profilePrivate,
         checkSession,
         signInWithGoogle,
         signOut: handleSignOut,
         deleteAccount,
+        setUsername: handleSetUsername,
+        refreshProfile,
       }}
     >
       {children}

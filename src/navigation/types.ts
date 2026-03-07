@@ -16,6 +16,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Splash: undefined;
+  UsernameSetup: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList>;
 };
 

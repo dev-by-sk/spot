@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { SplashScreen } from '../screens/splash/SplashScreen';
 import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
+import { UsernameSetupScreen } from '../screens/onboarding/UsernameSetupScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 import type { RootStackParamList } from './types';
 
@@ -12,7 +13,7 @@ const ONBOARDING_KEY = 'hasSeenOnboarding';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { isAuthenticated, isLoading, checkSession } = useAuth();
+  const { isAuthenticated, isLoading, hasUsername, checkSession } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
   // Track whether auth state has been resolved at least once and whether
@@ -80,6 +81,8 @@ export function RootNavigator() {
         </Stack.Screen>
       ) : isLoading ? (
         <Stack.Screen name="Splash" component={SplashScreen} />
+      ) : isAuthenticated && !hasUsername ? (
+        <Stack.Screen name="UsernameSetup" component={UsernameSetupScreen} />
       ) : isAuthenticated ? (
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       ) : (
