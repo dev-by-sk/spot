@@ -25,6 +25,7 @@ const mockGetCurrentSession = jest.fn().mockResolvedValue({
   userId: "user-1",
   email: "test@example.com",
   provider: "google",
+  accessToken: "session-token-abc",
 });
 
 let authStateCallback: ((event: string, session: any) => void) | null = null;
@@ -348,20 +349,15 @@ describe("AuthContext shared token storage", () => {
       Object.defineProperty(Platform, "OS", { value: "ios" });
     });
 
-    // FLAG: checkSession calls supabase.auth.getSession() to get the token,
-    // which is a SEPARATE call from getCurrentSession(). If the session was
-    // refreshed between the two calls, the stored token could be stale.
-    // In practice this race window is tiny, but the onAuthStateChange
-    // handler (TOKEN_REFRESHED) should correct it.
-    it("stores the token from getSession, not from getCurrentSession", async () => {
+    // checkSession uses the accessToken from getCurrentSession() directly
+    // (single call, no redundant getSession)
+    it("stores the token from getCurrentSession", async () => {
       const { result } = renderAuthHook();
 
       await act(async () => {
         await result.current.checkSession();
       });
 
-      // The mock returns "session-token-abc" from getSession
-      // getCurrentSession doesn't return a token at all
       expect(mockSetItem).toHaveBeenCalledWith(
         "spot_shared_access_token",
         "session-token-abc",

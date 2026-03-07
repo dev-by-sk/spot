@@ -9,3 +9,6 @@ npx jest --coverage
 and paste the output back to Claude Code:
 Here's the coverage report after the last test session. What critical
 branches are still untested? Write tests for the gaps.
+
+npx expo run:ios
+npx expo start --ios

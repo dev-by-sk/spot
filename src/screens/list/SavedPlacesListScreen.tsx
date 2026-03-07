@@ -122,14 +122,23 @@ export function SavedPlacesListScreen() {
   const [locationReady, setLocationReady] = useState(false);
   const [listSearchQuery, setListSearchQuery] = useState("");
 
+  const lastSyncRef = useRef<number>(0);
+  const SYNC_THROTTLE_MS = 30_000;
+
   useEffect(() => {
     if (currentUserId && isFocused) {
-      refreshPlaces(currentUserId);
+      const now = Date.now();
+      if (now - lastSyncRef.current > SYNC_THROTTLE_MS) {
+        lastSyncRef.current = now;
+        syncPlaces(currentUserId);
+      } else {
+        refreshPlaces(currentUserId);
+      }
     }
     if (!isFocused) {
       openSwipeableRef.current?.close();
     }
-  }, [currentUserId, isFocused, refreshPlaces]);
+  }, [currentUserId, isFocused]);
 
   useEffect(() => {
     (async () => {

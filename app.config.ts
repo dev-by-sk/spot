@@ -41,7 +41,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-screen-orientation',
     'expo-web-browser',
     'expo-secure-store',
-    './plugins/withAsyncShareExtension',
     [
       'expo-share-intent',
       {
@@ -51,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
+    './plugins/withAsyncShareExtension',
   ],
   extra: {
     supabaseUrl: process.env.SUPABASE_URL,

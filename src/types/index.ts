@@ -4,6 +4,7 @@ export interface UserSession {
   userId: string;
   email: string | null;
   provider: string;
+  accessToken: string | null;
 }
 
 export interface UserProfile {
