@@ -17,6 +17,11 @@ export enum AnalyticsEvent {
   // Navigation
   TabSwitched = 'tab_switched',
   OnboardingCompleted = 'onboarding_completed',
+  // Share Extension
+  ShareExtensionUsed = 'share_extension_used',
+  ExtractionCompleted = 'extraction_completed',
+  ExtractionFailed = 'extraction_failed',
+  ExtractionDuplicate = 'extraction_duplicate',
   // Sync
   SyncCompleted = 'sync_completed',
 }

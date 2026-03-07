@@ -50,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
+    './plugins/withAsyncShareExtension',
   ],
   extra: {
     supabaseUrl: process.env.SUPABASE_URL,

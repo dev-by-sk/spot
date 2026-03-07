@@ -3,8 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { ShareIntentProvider } from 'expo-share-intent';
-import * as Linking from 'expo-linking';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useFonts, PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -18,9 +16,6 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { analytics } from './src/services/analyticsService';
 
-// Deep linking configuration
-// getInitialURL and subscribe filter out share intent URLs (containing "dataUrl=")
-// so React Navigation doesn't consume them — expo-share-intent handles those instead.
 const linking = {
   prefixes: ['spot://'],
   config: {
@@ -31,23 +26,6 @@ const linking = {
         },
       },
     },
-  },
-  async getInitialURL() {
-    const url = await Linking.getInitialURL();
-    if (url && url.includes('dataUrl=')) {
-      return null;
-    }
-    return url;
-  },
-  subscribe(listener: (url: string) => void) {
-    const sub = Linking.addEventListener('url', ({ url }) => {
-      if (url.includes('dataUrl=')) {
-        // Filtered: expo-share-intent handles these
-      } else {
-        listener(url);
-      }
-    });
-    return () => sub.remove();
   },
 };
 
@@ -95,7 +73,6 @@ export default function App() {
         <SafeAreaProvider>
           <ThemeProvider>
             <ToastProvider>
-            <ShareIntentProvider>
               <DatabaseProvider>
                 <AuthProvider>
                   <PlacesProvider>
@@ -105,7 +82,6 @@ export default function App() {
                   </PlacesProvider>
                 </AuthProvider>
               </DatabaseProvider>
-            </ShareIntentProvider>
             </ToastProvider>
           </ThemeProvider>
         </SafeAreaProvider>
