@@ -47,25 +47,25 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
   const testExtract = useCallback(
     async (url: string) => {
       if (!isOnline) {
-          setExtractionError("You're offline. Share extraction unavailable.");
-          showToast({
-            text: "You're offline. Share extraction unavailable.",
-            type: "error",
-          });
+        setExtractionError("You're offline — can't find spots right now");
+        showToast({
+          text: "You're offline — can't find spots right now",
+          type: "error",
+        });
         return;
       }
       setIsExtracting(true);
       setExtractionError(null);
       setPendingPlace(null);
-      showToast({ text: "Extracting spot", type: "info" });
+      showToast({ text: "Finding spot", type: "info" });
 
       try {
         const searchResult = await extractPlaceFromURL(url);
 
         if (!searchResult) {
-          setExtractionError("Couldn't find a place from that link.");
+          setExtractionError("Couldn't find a spot from that link");
           showToast({
-            text: "Couldn't find a place from that link.",
+            text: "Couldn't find a spot from that link",
             type: "error",
           });
           return;
@@ -77,9 +77,9 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
         setPendingPlace(details);
       } catch (error) {
         console.warn("[Share] Test extraction failed:", error);
-        setExtractionError("Something went wrong extracting the place.");
+        setExtractionError("Something went wrong, try again");
         showToast({
-          text: "Something went wrong extracting the place.",
+          text: "Something went wrong, try again",
           type: "error",
         });
       } finally {

@@ -73,17 +73,17 @@ class ShareViewController: UIViewController {
 
     Task {
       guard let url = await extractURL(from: attachments) else {
-        await showBannerAndDismiss("No link found", success: false)
+        await showBannerAndDismiss("No link detected", success: false)
         return
       }
 
       guard let token = readAuthToken() else {
-        await showBannerAndDismiss("Open spot. and sign in first", success: false)
+        await showBannerAndDismiss("Sign in to spot. to save", success: false)
         return
       }
 
       let sent = await sendToServer(url: url, token: token)
-      await showBannerAndDismiss(sent ? "Sent to spot!" : "Failed to send", success: sent)
+      await showBannerAndDismiss(sent ? "Sent to spot." : "Couldn't save — try again", success: sent)
     }
   }
 
