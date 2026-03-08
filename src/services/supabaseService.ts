@@ -17,6 +17,7 @@ export async function getCurrentSession(): Promise<UserSession | null> {
     email: user.email ?? null,
     provider: (user.app_metadata?.provider as string) ?? '',
     accessToken: data.session.access_token ?? null,
+    refreshToken: data.session.refresh_token ?? null,
   };
 }
 

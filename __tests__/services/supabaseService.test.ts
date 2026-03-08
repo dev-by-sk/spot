@@ -14,7 +14,17 @@ jest.mock("../../src/config/supabase", () => ({
   supabase: {
     auth: {
       getSession: jest.fn().mockResolvedValue({
-        data: { session: { user: { id: "user-1" } } },
+        data: {
+          session: {
+            user: {
+              id: "user-1",
+              email: "test@example.com",
+              app_metadata: { provider: "google" },
+            },
+            access_token: "access-token-123",
+            refresh_token: "refresh-token-456",
+          },
+        },
       }),
       signOut: jest.fn(),
       signInWithIdToken: jest.fn(),
@@ -24,7 +34,10 @@ jest.mock("../../src/config/supabase", () => ({
   },
 }));
 
-import { uploadSavedPlace } from "../../src/services/supabaseService";
+import {
+  uploadSavedPlace,
+  getCurrentSession,
+} from "../../src/services/supabaseService";
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -45,6 +58,14 @@ describe("supabaseService", () => {
     date_visited: null,
     saved_at: "2024-06-15T12:00:00Z",
   };
+
+  it("getCurrentSession returns refreshToken from session", async () => {
+    const session = await getCurrentSession();
+
+    expect(session).not.toBeNull();
+    expect(session!.refreshToken).toBe("refresh-token-456");
+    expect(session!.accessToken).toBe("access-token-123");
+  });
 
   /**
    * Scenario 3.1.6 — [FIXED] uploadSavedPlace uses upsert for idempotent retries

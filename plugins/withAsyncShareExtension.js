@@ -50,6 +50,7 @@ import Security
 class ShareViewController: UIViewController {
   private let appGroupIdentifier = "${APP_GROUP}"
   private let tokenKey = "spot_shared_access_token"
+  private let refreshTokenKey = "spot_shared_refresh_token"
   private let supabaseUrl = "${escapedUrl}"
   private let supabaseAnonKey = "${escapedKey}"
 
@@ -94,8 +95,16 @@ class ShareViewController: UIViewController {
         return
       }
 
-      let sent = await sendToServer(url: url, token: token)
-      await showToastAndDismiss(sent ? "Sent to spot." : "Couldn't save — try again", success: sent)
+      let refreshToken = readRefreshToken()
+      let result = await sendToServer(url: url, token: token, refreshToken: refreshToken)
+      switch result {
+      case .success:
+        await showToastAndDismiss("Sent to spot.", success: true)
+      case .authExpired:
+        await showToastAndDismiss("Session expired — open spot. to sign in", success: false)
+      case .failed:
+        await showToastAndDismiss("Couldn't save — try again", success: false)
+      }
     }
   }
 
@@ -137,9 +146,15 @@ class ShareViewController: UIViewController {
     return String(text[range])
   }
 
-  private func sendToServer(url: String, token: String) async -> Bool {
+  private enum SendResult {
+    case success
+    case authExpired
+    case failed
+  }
+
+  private func sendToServer(url: String, token: String, refreshToken: String?) async -> SendResult {
     let endpoint = "\\(supabaseUrl)/functions/v1/async-extract-place"
-    guard let requestUrl = URL(string: endpoint) else { return false }
+    guard let requestUrl = URL(string: endpoint) else { return .failed }
 
     var request = URLRequest(url: requestUrl)
     request.httpMethod = "POST"
@@ -148,22 +163,47 @@ class ShareViewController: UIViewController {
     request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
     request.timeoutInterval = 10
 
-    guard let bodyData = try? JSONSerialization.data(withJSONObject: ["url": url]) else { return false }
+    var bodyDict: [String: Any] = ["url": url]
+    if let refreshToken = refreshToken {
+      bodyDict["refreshToken"] = refreshToken
+    }
+    guard let bodyData = try? JSONSerialization.data(withJSONObject: bodyDict) else { return .failed }
     request.httpBody = bodyData
 
     do {
-      let (_, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await URLSession.shared.data(for: request)
       let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-      return statusCode >= 200 && statusCode < 300
+      if statusCode >= 200 && statusCode < 300 {
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let newTokens = json["newTokens"] as? [String: Any],
+           let accessToken = newTokens["accessToken"] as? String,
+           let refreshToken = newTokens["refreshToken"] as? String {
+          writeKeychainValue(key: tokenKey, value: accessToken)
+          writeKeychainValue(key: refreshTokenKey, value: refreshToken)
+        }
+        return .success
+      } else if statusCode == 401 {
+        return .authExpired
+      } else {
+        return .failed
+      }
     } catch {
-      return false
+      return .failed
     }
   }
 
   private func readAuthToken() -> String? {
+    readKeychainValue(key: tokenKey)
+  }
+
+  private func readRefreshToken() -> String? {
+    readKeychainValue(key: refreshTokenKey)
+  }
+
+  private func readKeychainValue(key: String) -> String? {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
-      kSecAttrAccount as String: tokenKey,
+      kSecAttrAccount as String: key,
       kSecAttrAccessGroup as String: appGroupIdentifier,
       kSecReturnData as String: true,
       kSecMatchLimit as String: kSecMatchLimitOne,
@@ -172,6 +212,25 @@ class ShareViewController: UIViewController {
     let status = SecItemCopyMatching(query as CFDictionary, &result)
     guard status == errSecSuccess, let data = result as? Data else { return nil }
     return String(data: data, encoding: .utf8)
+  }
+
+  private func writeKeychainValue(key: String, value: String) {
+    let deleteQuery: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrAccount as String: key,
+      kSecAttrAccessGroup as String: appGroupIdentifier,
+    ]
+    SecItemDelete(deleteQuery as CFDictionary)
+
+    guard let data = value.data(using: .utf8) else { return }
+    let addQuery: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrAccount as String: key,
+      kSecAttrAccessGroup as String: appGroupIdentifier,
+      kSecValueData as String: data,
+      kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+    ]
+    SecItemAdd(addQuery as CFDictionary, nil)
   }
 
   @MainActor
