@@ -1,15 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
+  Switch,
   Alert,
   ActivityIndicator,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../hooks/useAuth";
 import { Avatar } from "../../components/Avatar";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
@@ -20,6 +25,8 @@ import {
   TERMS_OF_SERVICE_URL,
 } from "../../config/constants";
 import { useTheme, type ThemePreference } from "../../context/ThemeContext";
+import * as FriendsService from "../../services/friendsService";
+import type { ProfileStackParamList } from "../../navigation/types";
 
 const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] =
   [
@@ -29,13 +36,50 @@ const THEME_OPTIONS: { value: ThemePreference; icon: string; label: string }[] =
   ];
 
 export function ProfileScreen() {
-  const { userEmail, username, displayName, signOut, deleteAccount } = useAuth();
+  const { userEmail, username, displayName, currentUserId, profilePrivate, refreshProfile, signOut, deleteAccount } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const colors = useSpotColors();
   const { preference, setPreference } = useTheme();
   const isOnline = useNetworkStatus();
+  const insets = useSafeAreaInsets();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [socialCounts, setSocialCounts] = useState<{ followers_count: number; following_count: number } | null>(null);
+  const [isPrivate, setIsPrivate] = useState(profilePrivate);
 
   const avatarUsername = username ?? (userEmail?.split('@')[0] ?? 'user');
+
+  useEffect(() => {
+    setIsPrivate(profilePrivate);
+  }, [profilePrivate]);
+
+  const loadCounts = useCallback(async () => {
+    if (!currentUserId) return;
+    try {
+      const counts = await FriendsService.getSocialCounts(currentUserId);
+      setSocialCounts(counts);
+    } catch {
+      // silent
+    }
+  }, [currentUserId]);
+
+  useEffect(() => { loadCounts(); }, [loadCounts]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.all([loadCounts(), refreshProfile()]).catch(() => {});
+    setIsRefreshing(false);
+  }, [loadCounts, refreshProfile]);
+
+  const handlePrivacyToggle = useCallback(async (value: boolean) => {
+    setIsPrivate(value);
+    try {
+      await FriendsService.setProfilePrivacy(value);
+      await refreshProfile();
+    } catch {
+      setIsPrivate(!value);
+    }
+  }, [refreshProfile]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -66,9 +110,18 @@ export function ProfileScreen() {
   };
 
   return (
+    <View style={[styles.container, { backgroundColor: colors.spotBackground }]}>
+      <Text style={[styles.screenTitle, { color: colors.spotTextPrimary, paddingTop: insets.top + 16 }]}>Profile</Text>
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.spotBackground }]}
+      style={styles.scroll}
       contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.spotEmerald}
+        />
+      }
     >
       {/* User info section */}
       <View style={styles.section}>
@@ -91,6 +144,31 @@ export function ProfileScreen() {
             ) : null}
           </View>
         </View>
+        {currentUserId && (
+          <View style={styles.countsRow}>
+            <TouchableOpacity
+              style={styles.countItem}
+              onPress={() => navigation.navigate('FollowList', { userId: currentUserId, initialTab: 'followers' })}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.countNumber, { color: colors.spotTextPrimary }]}>
+                {socialCounts?.followers_count ?? '—'}
+              </Text>
+              <Text style={[styles.countLabel, { color: colors.spotTextSecondary }]}>Followers</Text>
+            </TouchableOpacity>
+            <View style={[styles.countDivider, { backgroundColor: colors.spotDivider }]} />
+            <TouchableOpacity
+              style={styles.countItem}
+              onPress={() => navigation.navigate('FollowList', { userId: currentUserId, initialTab: 'following' })}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.countNumber, { color: colors.spotTextPrimary }]}>
+                {socialCounts?.following_count ?? '—'}
+              </Text>
+              <Text style={[styles.countLabel, { color: colors.spotTextSecondary }]}>Following</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Appearance section */}
@@ -147,6 +225,17 @@ export function ProfileScreen() {
         >
           ACCOUNT
         </Text>
+        <View style={[styles.row, { borderColor: colors.spotDivider }]}>
+          <Text style={[styles.rowLabel, { color: colors.spotTextPrimary }]}>
+            Private Account
+          </Text>
+          <Switch
+            value={isPrivate}
+            onValueChange={handlePrivacyToggle}
+            trackColor={{ false: colors.spotDivider, true: colors.spotEmerald }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
         <TouchableOpacity
           style={[styles.row, { borderColor: colors.spotDivider }]}
           onPress={handleDeleteAccount}
@@ -219,6 +308,7 @@ export function ProfileScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -226,8 +316,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  screenTitle: {
+    ...SpotTypography.largeTitle,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   section: {
     marginBottom: 24,
@@ -253,6 +352,31 @@ const styles = StyleSheet.create({
   },
   usernameText: {
     ...SpotTypography.footnote,
+  },
+  countsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "transparent",
+  },
+  countItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 2,
+  },
+  countNumber: {
+    ...SpotTypography.title2,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  countLabel: {
+    ...SpotTypography.caption,
+  },
+  countDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 28,
+    marginHorizontal: 8,
   },
   segmentedRow: {
     flexDirection: "row",

@@ -6,10 +6,21 @@ export type ListStackParamList = {
   PlaceDetail: { place: SavedPlaceLocal };
 };
 
+export type FriendsStackParamList = {
+  FriendsHome: undefined;
+  FollowRequests: undefined;
+};
+
+export type ProfileStackParamList = {
+  ProfileHome: undefined;
+  FollowList: { userId: string; initialTab?: 'followers' | 'following' };
+};
+
 export type MainTabParamList = {
   List: NavigatorScreenParams<ListStackParamList>;
   Search: undefined;
-  Profile: undefined;
+  Friends: NavigatorScreenParams<FriendsStackParamList>;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type RootStackParamList = {

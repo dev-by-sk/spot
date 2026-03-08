@@ -383,7 +383,7 @@ export function SavedPlacesListScreen() {
         <Text
           style={[styles.emptySubtitle, { color: colors.spotTextSecondary }]}
         >
-          Search for a place or share a link from{"\n"}TikTok or Instagram to
+          Search for a spot or share a link from{"\n"}TikTok or Instagram to
           get started
         </Text>
         <TouchableOpacity

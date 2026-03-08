@@ -11,6 +11,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { DatabaseProvider } from './src/db/database';
 import { AuthProvider } from './src/context/AuthContext';
 import { PlacesProvider } from './src/context/PlacesContext';
+import { FriendsProvider } from './src/context/FriendsContext';
 import { ShareProvider } from './src/context/ShareContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { ToastProvider } from './src/context/ToastContext';
@@ -99,9 +100,11 @@ export default function App() {
               <DatabaseProvider>
                 <AuthProvider>
                   <PlacesProvider>
+                    <FriendsProvider>
                     <ShareProvider>
                       <ThemedApp />
                     </ShareProvider>
+                    </FriendsProvider>
                   </PlacesProvider>
                 </AuthProvider>
               </DatabaseProvider>
