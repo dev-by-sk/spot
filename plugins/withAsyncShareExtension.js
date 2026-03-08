@@ -101,7 +101,7 @@ class ShareViewController: UIViewController {
       case .success:
         await showToastAndDismiss("Sent to spot.", success: true)
       case .authExpired:
-        await showToastAndDismiss("Open spot. to refresh sign in", success: false)
+        await showToastAndDismiss("Session expired — open spot. to sign in", success: false)
       case .failed:
         await showToastAndDismiss("Couldn't save — try again", success: false)
       }

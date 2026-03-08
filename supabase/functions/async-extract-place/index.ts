@@ -544,7 +544,7 @@ serve(async (req) => {
           refresh_token: refreshToken,
         });
 
-      if (refreshError || !refreshData?.user) {
+      if (refreshError || !refreshData?.user || !refreshData?.session) {
         return Response.json(
           { error: "Session expired — open spot. to sign in again" },
           { status: 401, headers: corsHeaders },

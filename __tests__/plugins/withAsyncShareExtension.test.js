@@ -263,7 +263,7 @@ describe("withAsyncShareExtension", () => {
       withAsyncShareExtension(config);
 
       const content = fs.writeFileSync.mock.calls[0][1];
-      expect(content).toContain("Open spot. to refresh sign in");
+      expect(content).toContain("Session expired — open spot. to sign in");
       expect(content).toContain(".authExpired");
     });
 
