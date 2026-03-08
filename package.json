@@ -45,6 +45,7 @@
     "react-native-pager-view": "6.9.1",
     "react-native-safe-area-context": "^5.6.2",
     "react-native-screens": "~4.16.0",
+    "shared-storage": "file:modules/shared-storage",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
@@ -59,5 +60,10 @@
     "react-test-renderer": "^19.1.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "./modules"
+    }
+  }
 }

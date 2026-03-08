@@ -37,6 +37,9 @@ jest.mock("../../src/config/supabase", () => ({
       signOut: (...args: any[]) => mockLocalSignOut(...args),
       signInWithOAuth: jest.fn(),
       exchangeCodeForSession: jest.fn(),
+      getSession: jest.fn().mockResolvedValue({
+        data: { session: { access_token: "mock-token" } },
+      }),
       onAuthStateChange: jest.fn(() => ({
         data: { subscription: { unsubscribe: jest.fn() } },
       })),
