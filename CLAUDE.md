@@ -195,6 +195,7 @@ Edge function env (set in Supabase dashboard):
 - **Date format fix** (PR #22) — Consistent date-only string storage across SaveConfirmationModal and EditNoteModal, timezone-safe date handling
 - **Map view** (PR #23) — List/map toggle on SavedPlacesListScreen, SpotMapView with clustered pins (react-native-map-clustering), SpotMarker with per-category colors, PinPreviewCard bottom sheet, near-me button, unified `categoryColors.ts`
 - **Additional tests** (PR #24) — Tests for AuthContext, PlacesContext, SearchScreen, googlePlacesService, shareExtractionService, supabaseService
+- **Share extension token refresh** (PR #27) — Store refresh token in shared Keychain; edge function attempts token refresh on expired access token; context-specific error messages in share extension
 
 ## Known Issues
 

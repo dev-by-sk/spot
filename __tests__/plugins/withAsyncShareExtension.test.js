@@ -223,6 +223,50 @@ describe("withAsyncShareExtension", () => {
       expect(content).toContain('"spot_shared_access_token"');
     });
 
+    it("generated Swift includes refresh token key and reader", () => {
+      process.env.SUPABASE_URL = "https://abc.supabase.co";
+      process.env.SUPABASE_ANON_KEY = "key";
+
+      fs.existsSync.mockReturnValue(true);
+      fs.writeFileSync.mockImplementation(() => {});
+
+      const config = {
+        modResults: {},
+        modRequest: { projectRoot: "/project" },
+      };
+
+      const withAsyncShareExtension = loadPlugin();
+      withAsyncShareExtension(config);
+
+      const content = fs.writeFileSync.mock.calls[0][1];
+      // Must include refresh token key matching AuthContext SHARED_REFRESH_TOKEN_KEY
+      expect(content).toContain('"spot_shared_refresh_token"');
+      // Must have a readRefreshToken method
+      expect(content).toContain("readRefreshToken");
+      // Must send refreshToken in the request body
+      expect(content).toContain("refreshToken");
+    });
+
+    it("generated Swift shows auth-specific error on 401", () => {
+      process.env.SUPABASE_URL = "https://abc.supabase.co";
+      process.env.SUPABASE_ANON_KEY = "key";
+
+      fs.existsSync.mockReturnValue(true);
+      fs.writeFileSync.mockImplementation(() => {});
+
+      const config = {
+        modResults: {},
+        modRequest: { projectRoot: "/project" },
+      };
+
+      const withAsyncShareExtension = loadPlugin();
+      withAsyncShareExtension(config);
+
+      const content = fs.writeFileSync.mock.calls[0][1];
+      expect(content).toContain("Open spot. to refresh sign in");
+      expect(content).toContain(".authExpired");
+    });
+
     it("throws when SUPABASE_URL or SUPABASE_ANON_KEY are missing", () => {
       fs.existsSync.mockReturnValue(true);
       fs.writeFileSync.mockImplementation(() => {});
@@ -236,6 +280,53 @@ describe("withAsyncShareExtension", () => {
       expect(() => withAsyncShareExtension(config)).toThrow(
         "SUPABASE_URL and SUPABASE_ANON_KEY must be set"
       );
+    });
+
+    it("generated Swift includes writeKeychainValue with correct Keychain attributes", () => {
+      process.env.SUPABASE_URL = "https://abc.supabase.co";
+      process.env.SUPABASE_ANON_KEY = "key";
+
+      fs.existsSync.mockReturnValue(true);
+      fs.writeFileSync.mockImplementation(() => {});
+
+      const config = {
+        modResults: {},
+        modRequest: { projectRoot: "/project" },
+      };
+
+      const withAsyncShareExtension = loadPlugin();
+      withAsyncShareExtension(config);
+
+      const content = fs.writeFileSync.mock.calls[0][1];
+      expect(content).toContain("writeKeychainValue");
+      expect(content).toContain("kSecAttrAccessibleAfterFirstUnlock");
+      expect(content).toContain("SecItemDelete");
+      expect(content).toContain("SecItemAdd");
+    });
+
+    it("generated Swift captures response body for token self-healing", () => {
+      process.env.SUPABASE_URL = "https://abc.supabase.co";
+      process.env.SUPABASE_ANON_KEY = "key";
+
+      fs.existsSync.mockReturnValue(true);
+      fs.writeFileSync.mockImplementation(() => {});
+
+      const config = {
+        modResults: {},
+        modRequest: { projectRoot: "/project" },
+      };
+
+      const withAsyncShareExtension = loadPlugin();
+      withAsyncShareExtension(config);
+
+      const content = fs.writeFileSync.mock.calls[0][1];
+      // Must capture response body (not discard with _)
+      expect(content).toContain("let (data, response)");
+      expect(content).not.toContain("let (_, response)");
+      // Must parse newTokens from JSON response
+      expect(content).toContain('"newTokens"');
+      expect(content).toContain('"accessToken"');
+      expect(content).toContain('"refreshToken"');
     });
   });
 

@@ -1,9 +1,10 @@
 /**
  * Tests for AuthContext shared token storage (iOS Share Extension support)
  *
- * The auth context stores/clears an access token in shared storage
- * (UserDefaults via App Group on iOS) so the native Share Extension
+ * The auth context stores/clears access and refresh tokens in shared storage
+ * (Keychain via App Group on iOS) so the native Share Extension
  * can authenticate with the Supabase edge function.
+ * The refresh token enables the edge function to recover from expired access tokens.
  */
 import React from "react";
 import { Platform } from "react-native";
@@ -26,6 +27,7 @@ const mockGetCurrentSession = jest.fn().mockResolvedValue({
   email: "test@example.com",
   provider: "google",
   accessToken: "session-token-abc",
+  refreshToken: "refresh-token-abc",
 });
 
 let authStateCallback: ((event: string, session: any) => void) | null = null;
@@ -144,6 +146,20 @@ describe("AuthContext shared token storage", () => {
       );
     });
 
+    it("stores shared refresh token on checkSession when session exists", async () => {
+      const { result } = renderAuthHook();
+
+      await act(async () => {
+        await result.current.checkSession();
+      });
+
+      expect(mockSetItem).toHaveBeenCalledWith(
+        "spot_shared_refresh_token",
+        "refresh-token-abc",
+        "group.com.spot.app"
+      );
+    });
+
     it("stores token with correct key and App Group matching the Swift extension", async () => {
       const { result } = renderAuthHook();
 
@@ -171,7 +187,7 @@ describe("AuthContext shared token storage", () => {
       expect(mockSetItem).not.toHaveBeenCalled();
     });
 
-    it("clears shared token on signOut", async () => {
+    it("clears shared token and refresh token on signOut", async () => {
       const { result } = renderAuthHook();
 
       await act(async () => {
@@ -179,6 +195,7 @@ describe("AuthContext shared token storage", () => {
       });
 
       mockSetItem.mockClear();
+      mockRemoveItem.mockClear();
 
       await act(async () => {
         await result.current.signOut();
@@ -188,14 +205,20 @@ describe("AuthContext shared token storage", () => {
         "spot_shared_access_token",
         "group.com.spot.app"
       );
+      expect(mockRemoveItem).toHaveBeenCalledWith(
+        "spot_shared_refresh_token",
+        "group.com.spot.app"
+      );
     });
 
-    it("clears shared token on deleteAccount", async () => {
+    it("clears shared token and refresh token on deleteAccount", async () => {
       const { result } = renderAuthHook();
 
       await act(async () => {
         await result.current.checkSession();
       });
+
+      mockRemoveItem.mockClear();
 
       await act(async () => {
         await result.current.deleteAccount();
@@ -203,6 +226,10 @@ describe("AuthContext shared token storage", () => {
 
       expect(mockRemoveItem).toHaveBeenCalledWith(
         "spot_shared_access_token",
+        "group.com.spot.app"
+      );
+      expect(mockRemoveItem).toHaveBeenCalledWith(
+        "spot_shared_refresh_token",
         "group.com.spot.app"
       );
     });
@@ -218,6 +245,7 @@ describe("AuthContext shared token storage", () => {
       await act(async () => {
         authStateCallback?.("TOKEN_REFRESHED", {
           access_token: "refreshed-token-xyz",
+          refresh_token: "refreshed-refresh-xyz",
           user: { id: "user-1", email: "test@example.com", app_metadata: {} },
         });
       });
@@ -227,9 +255,14 @@ describe("AuthContext shared token storage", () => {
         "refreshed-token-xyz",
         "group.com.spot.app"
       );
+      expect(mockSetItem).toHaveBeenCalledWith(
+        "spot_shared_refresh_token",
+        "refreshed-refresh-xyz",
+        "group.com.spot.app"
+      );
     });
 
-    it("clears token on SIGNED_OUT auth state change", async () => {
+    it("clears both tokens on SIGNED_OUT auth state change", async () => {
       renderAuthHook();
 
       await act(async () => {});
@@ -244,9 +277,13 @@ describe("AuthContext shared token storage", () => {
         "spot_shared_access_token",
         "group.com.spot.app"
       );
+      expect(mockRemoveItem).toHaveBeenCalledWith(
+        "spot_shared_refresh_token",
+        "group.com.spot.app"
+      );
     });
 
-    it("does not store token when auth state change has no access_token", async () => {
+    it("does not store tokens when auth state change has no tokens", async () => {
       renderAuthHook();
 
       await act(async () => {});
@@ -255,7 +292,7 @@ describe("AuthContext shared token storage", () => {
 
       await act(async () => {
         authStateCallback?.("SIGNED_IN", {
-          // session with no access_token
+          // session with no access_token or refresh_token
           user: { id: "user-1", email: "test@example.com", app_metadata: {} },
         });
       });

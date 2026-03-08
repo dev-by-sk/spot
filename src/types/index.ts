@@ -5,6 +5,7 @@ export interface UserSession {
   email: string | null;
   provider: string;
   accessToken: string | null;
+  refreshToken: string | null;
 }
 
 export interface UserProfile {

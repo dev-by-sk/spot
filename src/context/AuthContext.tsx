@@ -17,8 +17,9 @@ import { analytics, AnalyticsEvent } from "../services/analyticsService";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { Platform } from "react-native";
 import { useToast } from "./ToastContext";
-// Shared storage token for the iOS Share Extension (Keychain via App Group)
+// Shared storage tokens for the iOS Share Extension (Keychain via App Group)
 const SHARED_TOKEN_KEY = "spot_shared_access_token";
+const SHARED_REFRESH_TOKEN_KEY = "spot_shared_refresh_token";
 const APP_GROUP = "group.com.spot.app";
 
 function storeSharedToken(token: string) {
@@ -31,6 +32,16 @@ function storeSharedToken(token: string) {
   }
 }
 
+function storeSharedRefreshToken(token: string) {
+  if (Platform.OS !== "ios") return;
+  try {
+    const SharedStorage = require("../../modules/shared-storage");
+    SharedStorage.setItem(SHARED_REFRESH_TOKEN_KEY, token, APP_GROUP);
+  } catch (error) {
+    console.warn("[Auth] Failed to store shared refresh token:", error);
+  }
+}
+
 function clearSharedToken() {
   if (Platform.OS !== "ios") return;
   try {
@@ -38,6 +49,16 @@ function clearSharedToken() {
     SharedStorage.removeItem(SHARED_TOKEN_KEY, APP_GROUP);
   } catch (error) {
     console.warn("[Auth] Failed to clear shared token:", error);
+  }
+}
+
+function clearSharedRefreshToken() {
+  if (Platform.OS !== "ios") return;
+  try {
+    const SharedStorage = require("../../modules/shared-storage");
+    SharedStorage.removeItem(SHARED_REFRESH_TOKEN_KEY, APP_GROUP);
+  } catch (error) {
+    console.warn("[Auth] Failed to clear shared refresh token:", error);
   }
 }
 
@@ -84,9 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserEmail(session.email);
         setIsAuthenticated(true);
         analytics.identify(session.userId, { provider: session.provider });
-        // Store token in shared Keychain for the iOS Share Extension
+        // Store tokens in shared Keychain for the iOS Share Extension
         if (session.accessToken) {
           storeSharedToken(session.accessToken);
+        }
+        if (session.refreshToken) {
+          storeSharedRefreshToken(session.refreshToken);
         }
         try {
           const profile = await SupabaseService.getUserProfile();
@@ -110,13 +134,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Always sync the shared token for the iOS Share Extension
+      // Always sync the shared tokens for the iOS Share Extension
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         if (session?.access_token) {
           storeSharedToken(session.access_token);
         }
+        if (session?.refresh_token) {
+          storeSharedRefreshToken(session.refresh_token);
+        }
       } else if (event === "SIGNED_OUT") {
         clearSharedToken();
+        clearSharedRefreshToken();
       }
       // Skip during initial session check to avoid racing with checkSession()
       if (!initialLoadDoneRef.current && event === "SIGNED_IN") return;
@@ -241,6 +269,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (sessionData.session?.access_token) {
         storeSharedToken(sessionData.session.access_token);
       }
+      if (sessionData.session?.refresh_token) {
+        storeSharedRefreshToken(sessionData.session.refresh_token);
+      }
 
       analytics.identify(sessionData.user.id, { provider: "google" });
       analytics.track(AnalyticsEvent.SignInCompleted, { provider: "google" });
@@ -273,6 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     clearSharedToken();
+    clearSharedRefreshToken();
     analytics.track(AnalyticsEvent.SignedOut);
     analytics.reset();
     setIsAuthenticated(false);
@@ -300,6 +332,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
       clearSharedToken();
+      clearSharedRefreshToken();
       analytics.track(AnalyticsEvent.AccountDeleteRequested);
       analytics.reset();
       setIsAuthenticated(false);

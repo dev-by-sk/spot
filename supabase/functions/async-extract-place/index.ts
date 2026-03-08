@@ -237,7 +237,10 @@ async function callOpenAI(
       location: parsed.location ?? null,
     };
   } catch {
-    console.warn("[async-extract] Failed to parse LLM JSON output:", jsonMatch[0]);
+    console.warn(
+      "[async-extract] Failed to parse LLM JSON output:",
+      jsonMatch[0],
+    );
     return { placeName: null, location: null };
   }
 }
@@ -248,7 +251,9 @@ async function searchGooglePlaces(query: string): Promise<string | null> {
   const res = await fetch(googleUrl);
   const data = await res.json();
   if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    throw new Error(`Google Places search error: ${data.status} — ${data.error_message ?? ""}`);
+    throw new Error(
+      `Google Places search error: ${data.status} — ${data.error_message ?? ""}`,
+    );
   }
   const results = data.results || [];
   return results.length > 0 ? results[0].place_id : null;
@@ -278,7 +283,9 @@ async function getGooglePlaceDetails(placeId: string): Promise<PlaceDetails> {
   const data = await res.json();
 
   if (data.status !== "OK") {
-    throw new Error(`Google Places details error: ${data.status} — ${data.error_message ?? ""}`);
+    throw new Error(
+      `Google Places details error: ${data.status} — ${data.error_message ?? ""}`,
+    );
   }
 
   const r = data.result;
@@ -444,7 +451,12 @@ async function insertSavedPlace(
 // --- URL validation ---
 function isPrivateHostname(hostname: string): boolean {
   // Block localhost
-  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]") {
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  ) {
     return true;
   }
   // Block private IP ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x)
@@ -481,7 +493,18 @@ serve(async (req) => {
   }
 
   try {
-    // 1. JWT validation
+    // 1. Parse request body (needed for both auth refresh and URL extraction)
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json(
+        { error: "Invalid request body" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
+    // 2. JWT validation (with refresh token fallback)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return Response.json(
@@ -493,19 +516,52 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const anonClient = getAnonClient();
 
+    let user: { id: string } | null = null;
+    let newTokens: { accessToken: string; refreshToken: string } | null = null;
+
     const {
-      data: { user },
+      data: { user: tokenUser },
       error: authError,
     } = await anonClient.auth.getUser(token);
 
-    if (authError || !user) {
-      return Response.json(
-        { error: "Invalid or expired token" },
-        { status: 401, headers: corsHeaders },
+    if (!authError && tokenUser) {
+      user = tokenUser;
+    } else {
+      // Access token expired — attempt refresh
+      const refreshToken =
+        typeof body.refreshToken === "string" ? body.refreshToken : null;
+
+      if (!refreshToken) {
+        return Response.json(
+          { error: "Token expired — open spot. to refresh your session" },
+          { status: 401, headers: corsHeaders },
+        );
+      }
+
+      const refreshClient = getAnonClient();
+      const { data: refreshData, error: refreshError } =
+        await refreshClient.auth.refreshSession({
+          refresh_token: refreshToken,
+        });
+
+      if (refreshError || !refreshData?.user) {
+        return Response.json(
+          { error: "Session expired — open spot. to sign in again" },
+          { status: 401, headers: corsHeaders },
+        );
+      }
+
+      user = refreshData.user;
+      newTokens = {
+        accessToken: refreshData.session!.access_token,
+        refreshToken: refreshData.session!.refresh_token,
+      };
+      console.log(
+        `[async-extract] Refreshed expired token for user ${user.id}`,
       );
     }
 
-    // 2. Rate limit check
+    // 3. Rate limit check
     if (isRateLimited(user.id)) {
       return Response.json(
         { error: "Too many requests — please slow down and try again" },
@@ -513,8 +569,7 @@ serve(async (req) => {
       );
     }
 
-    // 3. Parse and validate URL
-    const body = await req.json();
+    // 4. Validate URL
     const sourceUrl = body.url;
 
     if (!sourceUrl || typeof sourceUrl !== "string" || !isValidUrl(sourceUrl)) {
@@ -524,7 +579,7 @@ serve(async (req) => {
       );
     }
 
-    // 4. Validate env vars
+    // 5. Validate env vars
     if (!OPENAI_API_KEY) {
       return Response.json(
         { error: "OPENAI_API_KEY not configured" },
@@ -541,7 +596,7 @@ serve(async (req) => {
 
     const serviceClient = getServiceClient();
 
-    // 5. Run full pipeline in the background — return immediately so the
+    // 6. Run full pipeline in the background — return immediately so the
     //    share extension can dismiss and the user keeps scrolling.
     const pipelinePromise = (async () => {
       try {
@@ -614,8 +669,12 @@ serve(async (req) => {
     // @ts-ignore — EdgeRuntime is a Supabase global, not in Deno typings
     EdgeRuntime.waitUntil(pipelinePromise);
 
-    // 6. Return immediately
-    return Response.json({ queued: true }, { headers: corsHeaders });
+    // 7. Return immediately (include new tokens if a refresh occurred)
+    const responseBody: Record<string, unknown> = { queued: true };
+    if (newTokens) {
+      responseBody.newTokens = newTokens;
+    }
+    return Response.json(responseBody, { headers: corsHeaders });
   } catch (error) {
     console.error("[async-extract] Error:", error);
     return Response.json(

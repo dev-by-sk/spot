@@ -28,65 +28,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 2. No LLM Fallback When Edge Function Fails
-
-**Fix** · **Effort: Medium (2–3 hr)**
-
-**What:** When the edge function (LLM extraction) fails, the entire share-to-save pipeline returns `null`. No local fallback, no retry.
-
-**Why it matters:** The share extraction feature is the app's core differentiator. If the edge function has downtime, the feature is completely dead.
-
-**What happens if we skip it:** Any edge function outage (Supabase incident, OpenAI rate limit, expired API key) kills the flagship feature.
-
-**Files:**
-
-- `src/services/shareExtractionService.ts` lines 83–86
-
-**Fix:** Add a local fallback that uses regex to extract place names from oEmbed/metadata (e.g., common patterns like "Restaurant Name" in TikTok captions), then search Google Places directly.
-
----
-
-### 3. Share Extension Token Expiry
-
-**Fix** · **Effort: Medium (2–3 hr)**
-
-**What:** The iOS Share Extension reads the Supabase access token from Keychain to authenticate with the edge function. Access tokens expire after 1 hour (Supabase default). `TOKEN_REFRESHED` only fires when the main app is running, so if a user shares a link hours/days after last opening the app, the token is expired and the edge function returns 401.
-
-**Why it matters:** Users who share a TikTok/Instagram link without recently opening the app will see "Failed to send" with no explanation. This will be a common failure path.
-
-**What happens if we skip it:** Share extension silently fails for users who don't open the app frequently. They won't understand why.
-
-**Files:**
-
-- `src/context/AuthContext.tsx` (token storage)
-- `supabase/functions/async-extract-place/index.ts` (token validation)
-- iOS Share Extension (token reading)
-
-**Possible fixes:**
-- Store the refresh token alongside the access token; have the edge function attempt a refresh on 401
-- Use a longer-lived custom token for the share extension
-- Show a user-friendly error in the share extension ("Open spot. to refresh your session")
-
----
-
-### 4. No Sync Trigger After Background Save
-
-**Fix** · **Effort: Medium (2–3 hr)**
-
-**What:** When the Share Extension saves a spot via the `async-extract-place` edge function, the new place is written to Supabase but the app has no way to know. Spots won't appear until the user pull-to-refreshes or restarts the app.
-
-**Why it matters:** The core UX promise of "share a TikTok and it just appears" is broken. Users will think the share didn't work.
-
-**What happens if we skip it:** Users must manually refresh after every share. Defeats the "magic" of the async flow.
-
-**Possible fixes:**
-- Supabase Realtime subscription on `saved_places` to trigger a sync on INSERT
-- Push notification from the edge function on successful save
-- Periodic background sync (e.g., every 30s when app is foregrounded)
-
----
-
-### 5. Edge Function Rate Limiter Is Ineffective
+### 2. Edge Function Rate Limiter Is Ineffective
 
 **Fix** · **Effort: Small (1–2 hr)**
 
@@ -103,7 +45,7 @@ These significantly affect user experience and app reliability. Fix before scali
 
 ---
 
-### 6. Silent Share Failures With No User Indication
+### 3. Silent Share Failures With No User Indication
 
 **Fix** · **Effort: Medium (2–3 hr)**
 
@@ -126,7 +68,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 7. Sort Options for Saved Places
+### 4. Sort Options for Saved Places
 
 **Feature** · **Effort: Medium (2–3 hr)**
 
@@ -140,7 +82,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 8. Missing Safe Area Handling on Some Screens
+### 5. Missing Safe Area Handling on Some Screens
 
 **Fix** · **Effort: Small (<1 hr)**
 
@@ -159,7 +101,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 9. No CI/CD Pipeline
+### 6. No CI/CD Pipeline
 
 **Feature** · **Effort: Large (4–6 hr)**
 
@@ -173,7 +115,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 10. No Haptic Feedback
+### 7. No Haptic Feedback
 
 **Feature** · **Effort: Small (<1 hr)**
 
@@ -187,7 +129,7 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 ---
 
-### 11. Outdated Dependencies with Known Vulnerabilities
+### 8. Outdated Dependencies with Known Vulnerabilities
 
 **Fix** · **Effort: Medium (2–4 hr)**
 
@@ -210,6 +152,6 @@ These improve long-term maintainability, performance at scale, and overall polis
 
 | Tier               | Issues | Effort     |
 | ------------------ | ------ | ---------- |
-| **Important**      | 6      | ~15 hr     |
+| **Important**      | 3      | ~7 hr      |
 | **Polish & Infra** | 5      | ~15 hr     |
-| **Total**          | **11** | **~30 hr** |
+| **Total**          | **8**  | **~22 hr** |
