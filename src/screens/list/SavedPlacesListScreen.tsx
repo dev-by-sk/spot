@@ -63,12 +63,12 @@ export function SavedPlacesListScreen() {
   const {
     savedPlaces,
     isLoadingPlaces,
-    refreshPlaces,
     deletePlaceById,
     updateNote,
     selectedFilter,
     setSelectedFilter,
     syncPlaces,
+    refreshPlaces,
   } = usePlaces();
   const { currentUserId } = useAuth();
   const colors = useSpotColors();
@@ -398,7 +398,7 @@ export function SavedPlacesListScreen() {
         <Text
           style={[styles.emptySubtitle, { color: colors.spotTextSecondary }]}
         >
-          Search for a place or share a link from{"\n"}TikTok or Instagram to
+          Search for a spot or share a link from{"\n"}TikTok or Instagram to
           get started
         </Text>
         <TouchableOpacity
@@ -528,6 +528,7 @@ export function SavedPlacesListScreen() {
             filteredPlaces.length > 0 && styles.listContent,
           ]}
           keyboardDismissMode="on-drag"
+          onTouchStart={() => openSwipeableRef.current?.close()}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             listSearchQuery.trim().length > 0 ? (
@@ -681,9 +682,9 @@ const PlaceRow = React.memo(function PlaceRow({
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => {
-            if (!swiping) {
-              navigation.navigate("PlaceDetail", { place: item });
-            }
+            if (swiping) return;
+            openSwipeableRef.current?.close();
+            navigation.navigate("PlaceDetail", { place: item });
           }}
           style={styles.cardContainer}
         >

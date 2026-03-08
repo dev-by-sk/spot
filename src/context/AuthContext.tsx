@@ -47,10 +47,16 @@ export interface AuthContextValue {
   isSigningIn: boolean;
   currentUserId: string | null;
   userEmail: string | null;
+  username: string | null;
+  displayName: string | null;
+  hasUsername: boolean;
+  profilePrivate: boolean;
   checkSession: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+  setUsername: (username: string, firstName?: string, lastName?: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
@@ -59,10 +65,16 @@ export const AuthContext = createContext<AuthContextValue>({
   isSigningIn: false,
   currentUserId: null,
   userEmail: null,
+  username: null,
+  displayName: null,
+  hasUsername: false,
+  profilePrivate: true,
   checkSession: async () => {},
   signInWithGoogle: async () => {},
   signOut: async () => {},
   deleteAccount: async () => {},
+  setUsername: async () => {},
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -73,7 +85,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [username, setUsernameState] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [profilePrivate, setProfilePrivate] = useState(true);
   const initialLoadDoneRef = useRef(false);
+  const isHandlingSignInRef = useRef(false);
+
+  const applyProfile = useCallback((profile: import("../types").UserProfile) => {
+    setUsernameState(profile.username ?? null);
+    setDisplayName(profile.display_name ?? null);
+    setProfilePrivate(profile.profile_private ?? true);
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const profile = await SupabaseService.getUserProfile();
+      if (profile) applyProfile(profile);
+    } catch (error) {
+      console.warn("[Auth] refreshProfile failed:", error);
+    }
+  }, [applyProfile]);
 
   const checkSession = useCallback(async () => {
     try {
@@ -93,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (profile?.deleted_at) {
             await SupabaseService.cancelDeleteAccount();
           }
+          if (profile) applyProfile(profile);
         } catch (error) {
           console.warn("[Auth] Profile fetch failed:", error);
         }
@@ -103,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       initialLoadDoneRef.current = true;
     }
-  }, []);
+  }, [applyProfile]);
 
   // Listen for session changes (e.g., session restored from SecureStore after cold start)
   useEffect(() => {
@@ -120,6 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // Skip during initial session check to avoid racing with checkSession()
       if (!initialLoadDoneRef.current && event === "SIGNED_IN") return;
+      // Skip SIGNED_IN fired by exchangeCodeForSession — signInWithGoogle handles it
+      if (isHandlingSignInRef.current && event === "SIGNED_IN") return;
 
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         if (session?.user) {
@@ -185,6 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setIsSigningIn(true);
+    isHandlingSignInRef.current = true;
     try {
       const redirectUri = AuthSession.makeRedirectUri({ path: "auth-callback" });
       console.log("[Auth] Google OAuth redirect URI:", redirectUri);
@@ -235,6 +270,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Fetch profile before setting isAuthenticated so hasUsername is correct
+      // on first render — prevents flash of UsernameSetupScreen for existing users
+      try {
+        const profile = await SupabaseService.getUserProfile();
+        if (profile) applyProfile(profile);
+      } catch {
+        // non-fatal
+      }
+
       setCurrentUserId(sessionData.user.id);
       setUserEmail(sessionData.user.email ?? null);
       setIsAuthenticated(true);
@@ -252,9 +296,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         action: { label: "Retry", onPress: () => signInWithGoogle() },
       });
     } finally {
+      isHandlingSignInRef.current = false;
       setIsSigningIn(false);
     }
-  }, [showToast]);
+  }, [showToast, applyProfile]);
 
   const handleSignOut = useCallback(async () => {
     if (isOnline) {
@@ -278,6 +323,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     setCurrentUserId(null);
     setUserEmail(null);
+    setUsernameState(null);
+    setDisplayName(null);
+    setProfilePrivate(true);
   }, [isOnline]);
 
   const deleteAccount = useCallback(async () => {
@@ -305,6 +353,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(false);
       setCurrentUserId(null);
       setUserEmail(null);
+      setUsernameState(null);
+      setDisplayName(null);
+      setProfilePrivate(true);
     } catch {
       showToast({
         text: "Failed to delete account, please try again",
@@ -315,6 +366,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isOnline, showToast]);
 
+  const handleSetUsername = useCallback(
+    async (newUsername: string, firstName?: string, lastName?: string) => {
+      const { error } = await supabase.rpc("set_username", {
+        new_username: newUsername,
+        p_first_name: firstName ?? null,
+        p_last_name: lastName ?? null,
+      });
+      if (error) throw error;
+      await refreshProfile();
+    },
+    [refreshProfile],
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -323,10 +387,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSigningIn,
         currentUserId,
         userEmail,
+        username,
+        displayName,
+        hasUsername: username !== null,
+        profilePrivate,
         checkSession,
         signInWithGoogle,
         signOut: handleSignOut,
         deleteAccount,
+        setUsername: handleSetUsername,
+        refreshProfile,
       }}
     >
       {children}

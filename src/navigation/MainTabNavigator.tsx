@@ -3,10 +3,12 @@ import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { ListStackNavigator } from './ListStackNavigator';
+import { FriendsStackNavigator } from './FriendsStackNavigator';
+import { ProfileStackNavigator } from './ProfileStackNavigator';
 import { SearchScreen } from '../screens/search/SearchScreen';
-import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { useAuth } from '../hooks/useAuth';
 import { usePlaces } from '../hooks/usePlaces';
+import { useFriends } from '../hooks/useFriends';
 import { analytics, AnalyticsEvent } from '../services/analyticsService';
 import { useSpotColors } from '../theme/colors';
 import { OfflineBanner } from '../components/OfflineBanner';
@@ -18,12 +20,14 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const TAB_NAMES: Record<string, string> = {
   List: 'list',
   Search: 'search',
+  Friends: 'friends',
   Profile: 'profile',
 };
 
 export function MainTabNavigator() {
   const { currentUserId } = useAuth();
   const { syncPlaces } = usePlaces();
+  const { pendingRequestCount } = useFriends();
   const colors = useSpotColors();
   const hasSynced = useRef(false);
 
@@ -79,9 +83,23 @@ export function MainTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
+        name="Friends"
+        component={FriendsStackNavigator}
         options={{
+          headerShown: false,
+          title: 'Friends',
+          tabBarBadge: pendingRequestCount > 0 ? pendingRequestCount : undefined,
+          tabBarBadgeStyle: { fontSize: 9, minWidth: 17, height: 17, lineHeight: 17 },
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStackNavigator}
+        options={{
+          headerShown: false,
           title: 'Profile',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />

@@ -310,6 +310,7 @@ export function PlacesProvider({ children }: { children: React.ReactNode }) {
         await refreshPlaces(userId);
         analytics.track(AnalyticsEvent.SyncCompleted);
       } catch (error) {
+        await refreshPlaces(userId).catch(() => {});
         showToast({
           text: "Sync failed, pull down to try again",
           type: "error",

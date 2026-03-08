@@ -57,9 +57,9 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   if (!sessionData.session) return null;
   const userId = sessionData.session.user.id;
   const { data, error } = await supabase
-    .from('users')
-    .select()
-    .eq('id', userId)
+    .from("users")
+    .select("id, email, auth_provider, created_at, deleted_at, username, display_name, first_name, last_name, profile_private")
+    .eq("id", userId)
     .single();
   if (error) throw error;
   return data as UserProfile;
